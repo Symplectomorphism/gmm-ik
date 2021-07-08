@@ -6,9 +6,10 @@ using Setfield
 struct ThreeLink
     θ::Matrix{Float64}
     x::Matrix{Float64}
-    ξ::Matrix{Float64}
+    ξ::Matrix{Float64}                                  # (x, θ) || (input, output)
     M::Int              # Number of components
     N::Int              # Number of data points
+    π::Array{Float64, 1}                                 # Mixing proportions
     μ::Matrix{Float64}                                   # Mean of Gaussians
     Σ::Array{Matrix{Float64}, 1}                         # Variance of Gaussians
     h::Matrix{Float64}
@@ -23,12 +24,13 @@ function ThreeLink(θ, x, ξ, M, N)
         push!(Σ, diagm(ones(5)))
     end
 
+    π = 1/M*ones(M)
     temp = kmeans(ξ, M)
     μ = zeros(5, M)
     for i = 1:M
         μ[:,i] = temp.centers[:,i]
-      end
-    ThreeLink(θ, x, ξ, M, N, μ, Σ, h, temp)
+    end
+    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp)
 end
 
 function ThreeLink(;N::Int=10)
@@ -63,12 +65,12 @@ end
 function _E_step(r::ThreeLink)
     for i = 1:r.N
         for j = 1:r.M
-            numerator = 1/sqrt(det(Σ[j])) * 
-                exp(-1/2* dot((r.ξ[:,i] - r.μ[:,j]), Σ[j]\(r.ξ[:,i] - r.μ[:,j])) )
+            numerator = 1/sqrt(det(r.Σ[j])) * 
+                exp(-1/2* dot((r.ξ[:,i] - r.μ[:,j]), r.Σ[j]\(r.ξ[:,i] - r.μ[:,j])) )
             denominator = 0.0
             for l = 1:r.M
-                denominator += 1/sqrt(det(Σ[l])) * 
-                    exp(-1/2* dot((r.ξ[:,i] - r.μ[:,l]), Σ[l]\(r.ξ[:,i] - r.μ[:,l])) )
+                denominator += 1/sqrt(det(r.Σ[l])) * 
+                    exp(-1/2* dot((r.ξ[:,i] - r.μ[:,l]), r.Σ[l]\(r.ξ[:,i] - r.μ[:,l])) )
             end
             r.h[i,j] = numerator / denominator
         end
@@ -85,6 +87,8 @@ function _M_step(r::ThreeLink)
             numerator_μ += r.h[i,j] * r.ξ[:,i]
             denominator += r.h[i,j]
         end
+
+        r.π[j] = denominator / r.N
 
         r.μ[:,j] = numerator_μ / denominator
 
@@ -103,5 +107,11 @@ function execute_EM(r::ThreeLink; maxiter::Int=100)
 end
 
 function prediction(r::ThreeLink, x::Vector)
-    
+    μ_θ_tilde = zeros(3, r.M)
+    Σ_θθ_tilde = Array{Matrix{Float64}, 1}()
+    for i = 1:r.M
+        μ_θ_tilde[:,i] = r.μ[3:5,i] + r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\(x - r.μ[1:2,i]))
+        push!(Σ_θθ_tilde, 
+            r.Σ[i][3:5,3:5] - r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\r.Σ[i][1:2,3:5]))
+    end
 end
