@@ -1,7 +1,6 @@
 using Random, Distributions
 using Clustering
 using LinearAlgebra
-using Setfield
 
 struct ThreeLink
     θ::Matrix{Float64}
@@ -104,36 +103,45 @@ function _M_step(r::ThreeLink)
     for j = 1:r.M
         numerator_μ = zeros(5)
         numerator_Σ = zeros(5, 5)
-        denominator = 0.0
+
+        normalizer = 0.0
 
         for i = 1:r.N
             numerator_μ += r.h[i,j] * r.ξ[:,i]
-            denominator += r.h[i,j]
+            normalizer += r.h[i,j]
         end
-
-        r.π[j] = denominator / r.N
-
-        r.μ[:,j] = numerator_μ / denominator
-
         for i = 1:r.N
             numerator_Σ += r.h[i,j] * (r.ξ[:,i] - r.μ[:,j]) * (r.ξ[:,i] - r.μ[:,j])'
         end
-        r.Σ[j] = numerator_Σ / denominator
+
+        r.π[j] = normalizer / r.N
+        r.μ[:,j] = numerator_μ / normalizer
+        r.Σ[j] = numerator_Σ / normalizer
     end
 end
 
 function execute_EM(r::ThreeLink; maxiter::Int=10)
-    for i = 1:maxiter
+    μ_error = Inf
+    Σ_error = Inf
+    k = 1
+    while μ_error > 1e-3 || Σ_error > 1e-2
         μ = zeros(5,r.M)
         Σ = Array{Matrix{Float64}, 1}()
         for i = 1:r.M
             μ[:,i] = r.μ[:,i]
             push!(Σ, r.Σ[i])
         end
+
+        # EM step
         _E_step(r)
         _M_step(r)
-        @info sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M)
-        @info sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M)
+
+        μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M)
+        Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M)
+        println("Iteration: $k, |Δμ| = $(round(μ_error, digits=4)), |ΔΣ| = $(round(Σ_error, digits=4))")
+
+        k += 1
+        k > maxiter ? break : nothing
     end
 end
 
@@ -158,9 +166,16 @@ function prediction(r::ThreeLink, x::Vector)
 
     for i = 1:r.M
         β[i] = r.π[i] * pdf(d[i], x) / denominator
+    end
+
+
+    for i = 1:r.M
         θ_tilde += β[i] * μ_θ_tilde[:,i]
         Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
     end
-
     return θ_tilde, Σ_θθ_tilde_final
+
+    # # SLSE
+    # value, ind = findmax([pdf(d[i], x) for i =1:r.M])
+    # return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
