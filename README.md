@@ -1,5 +1,9 @@
-# gmm-ik
-Implements expectation maximization to train a Gaussian Mixture Model that learns the inverse kinematics of a three-link manipulator.
+# Inverse Kinematics via Gaussian Mixture Modeling
+Implements expectation maximization to train a Gaussian Mixture Model that
+learns the inverse kinematics of a three-link manipulator.
+
+### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY!
+
 
 * This is a Julia implementation of the example provided in 
 Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation."
@@ -25,5 +29,5 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     structure.
   - ```execute_em!(r; maxiter=100)``` -- It takes around 22-23 iterations to
     converge to the specified (hard-coded) tolerance values.
-  - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates the test
+  - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
