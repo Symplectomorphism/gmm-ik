@@ -2,8 +2,9 @@
 Implements expectation maximization to train a Gaussian Mixture Model that
 learns the inverse kinematics of a three-link manipulator.
 
-I have compiled a detailed write-up on this problem that can be accessed 
-[here](./TeX/root.pdf).
+I have compiled a detailed write-up on this problem that can be accessed
+[here](./TeX/root.pdf) (if the first page is blank, just click "Download" on the
+top right of the page).
 
 ### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY!
 
