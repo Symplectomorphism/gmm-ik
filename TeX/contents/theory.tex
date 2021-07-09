@@ -6,7 +6,7 @@ inverse kinematics map. My presentation will closely follow three
 sources:~\cite{mclachlan2007algorithm,ghahramani1993solving,xu2017data}.
 
 We assume that the data $\Xi = \left\{ \xi_1, \ldots, \xi_N \right\}$ were
-generated independenty by a mixture density:
+generated independently by a mixture density:
 %
 \begin{equation}
     P(\xi_i) = \sum_{j=1}^M \underbrace{P(\omega_j)}_{\pi_j} 
@@ -129,11 +129,14 @@ matrix $\hat{\Sigma}_j$.
 Given each component $\omega_j$ and output $x$, the conditionial probability 
 distributioin of $\theta$ can be obtained as:
 %
-\begin{align*}
+\begin{align}
+    \begin{split}
     P(\theta \mid \mathrm{x}; \omega_j) &= \mc{N}\left( \theta \mid \tilde{\mu}_{\theta,j}, \tilde{\Sigma}_{\theta\theta} \right), \\
     \tilde{\mu}_{\theta, j} &=  \mu_{\theta, j} + \Sigma_{\theta\mathrm{x}, j}\Sigma_{\mathrm{xx}, j}^{-1} \left( \mathrm{x} - \mu_{\mathrm{x},j} \right), \\
     \tilde{\Sigma}_{\theta\theta, j} &= \Sigma_{\theta\theta, j} - \Sigma_{\theta\mathrm{x}, j}\Sigma_{\mathrm{xx}, j}^{-1}\Sigma_{\mathrm{x}\theta, j}.
-\end{align*}
+    \end{split}
+    \label{eq:posterior_each_comp}
+\end{align}
 %
 Finally, we marginalize out the component $\omega_j$ to find the conditional 
 probability of $\theta$ given $\mathrm{x}$:
@@ -181,6 +184,7 @@ estimate $\hat{\theta}_i$ of $\theta_i = f(x_i)$.
 
 
 \subsection{Initialization of EM}
+\label{ssec:initialization}
 %
 The EM algorithm is iterative, which means, in particular, that we need to start
 it off with an initial guess for the parameters. Clearly, the better the initial
@@ -199,4 +203,28 @@ were as follows:
 \end{enumerate}
 
 
-% \subsection{Summary of the Full Algorithm}
+\subsection{Summary of the Full Algorithm}
+%
+Let me provide a brief explanation of the method.
+
+\begin{enumerate}
+    \item Randomly select the data pointis $\{\theta_1, \ldots, \theta_N\}$ and
+    generate the corresponding $\{\mathrm{x}_1, \ldots, \mathrm{x}_N\}$.
+    %
+    \item Collect the full data in one vector: $\xi_i = \bmat{ \mathrm{x}_i,
+    \theta_i}$ and $\xi = \{\xi_i\}_{i=1}^N$.
+    %
+    \item Model the data to be generated independently by a Gaussian mixture
+    density~\eqref{eq:mixture_density} and initialize the parameters of the
+    model following Section~\ref{ssec:initialization}.
+    %
+    \item Employ EM to find $P(\xi) = P(\mathrm{x}, \theta)$ using
+    equations~\eqref{eq:E-step} and~\eqref{eq:M-step}.
+    %
+    \item Marginalize the sum of the Gaussians to find $P(\theta \mid
+    \mathrm{x})$ using
+    equation~\eqref{eq:partition}--\eqref{eq:posterior_distribution}.
+    %
+    \item Given an end-effector position $\mathrm{x}$, estimate the joint angles
+    using STOCH or SLSE.
+\end{enumerate}
