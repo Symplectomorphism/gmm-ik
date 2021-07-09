@@ -33,7 +33,7 @@ function ThreeLink(θ, x, ξ, M, N)
 end
 
 function ThreeLink(;N::Int=10)
-    d = Uniform(-30*π/180, 30*π/180)
+    d = Uniform(-90*π/180, 90*π/180)
     θ = rand(d, 3, N)
     x = zeros(2, N)
     ξ = zeros(5, N)
@@ -49,7 +49,7 @@ function ThreeLink(;N::Int=10)
 end
 
 function ThreeLink(;N::Int=100, M::Int=10)
-    d = Uniform(-30*π/180, 30*π/180)
+    d = Uniform(-90*π/180, 90*π/180)
     θ = rand(d, 3, N)
     x = zeros(2, N)
     ξ = zeros(5, N)
