@@ -3,6 +3,7 @@ using Clustering
 using LinearAlgebra
 using GaussianMixtures
 using PyPlot
+using JuMP, Ipopt
 using BSON: @save, @load     # enable if you want to load one of the .bson files
 
 """
@@ -135,7 +136,7 @@ function _M_step(r::ThreeLink)
     end
 end
 
-function execute_em!(r::ThreeLink; maxiter::Int=10)
+function execute_em!(r::ThreeLink; maxiter::Int=10, verbose::Bool=true)
     μ_error = Inf
     Σ_error = Inf
     k = 1
@@ -153,7 +154,10 @@ function execute_em!(r::ThreeLink; maxiter::Int=10)
 
         μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M) / sum(norm(r.μ[:,i]) for i = 1:r.M)
         Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M) / sum(norm(r.Σ[i]) for i = 1:r.M)
-        println("Iteration: $k, |Δμ| = $(round(μ_error, digits=4)), |ΔΣ| = $(round(Σ_error, digits=4))")
+        
+        if verbose
+            println("Iteration: $k, |Δμ| = $(round(μ_error, digits=4)), |ΔΣ| = $(round(Σ_error, digits=4))")
+        end
 
         k += 1
         k > maxiter ? break : nothing
@@ -270,6 +274,17 @@ function solve_optimization(x::Vector; start::Vector)
 end
 
 
+function hyperparameter_training()
+    N = 2001
+    for M = 131:10:151
+        r = ThreeLink(N=N, M=M)
+        try execute_em!(r; maxiter=100, verbose=true) catch end
+        avg_cost = test_training(r; nPoints=200)
+        println("Average Cost($M) = $(avg_cost)")
+    end
+end
+
+
 function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
     ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
@@ -293,11 +308,11 @@ function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
         p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
 
         ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
-        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.3)
-        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.3)
-        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.3)
-        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.3)
-        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.2)
+        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
+        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
 
         ax.plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
     end

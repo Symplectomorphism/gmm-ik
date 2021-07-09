@@ -12,3 +12,35 @@ The trained model may be tested by running the \texttt{test\_training} function,
 which generates $200$ extra points and returns the average error incurred by the
 output of the algorithm. A visualization of the performance of the algorithm is
 depicted in Figure~\ref{fig:example_sol}.
+
+The performance of the algorithm for various numbers of Gaussian components is
+provided in Table~\ref{tab:perf_wrt_components} for $N=2001$ data points,
+uniformly randomly generated over the range $-\pi \leq \theta_1, \theta_2,
+\theta_3 \leq \pi$.
+
+\begin{table}[t]
+    \centering
+    {\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l|ccccccccc}
+    Components & $41$ & $51$ & $61$ & $71$ & $81$ & $91$ & $101$ & $111$ & $121$ \\ \hline
+    Mean $\ell_2$ error & $0.2368$ & $0.2104$ & $0.1613$ & $0.1795$ & $0.1685$ & 
+    $0.1926$ & \fbox{$0.1392$} & $0.1792$ & $0.1584$
+\end{tabular}
+    }
+\caption{The performance of the algorithm for different number of Gaussian 
+components for $N = 2001$ data points, tested over $200$ fresh samples.}
+\label{tab:perf_wrt_components}
+\end{table}
+
+\begin{table}[b]
+    \centering
+    {\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l|cccccccc}
+    Components & $131$ & $141$ & $151$ & $161$ & $171$ & $181$ & $191$ & $201$  \\ \hline
+    Mean $\ell_2$ error & $0.1479$ & $0.1265$ & $--$ & $--$ & $--$ & 
+    $--$ & $--$ & $--$ 
+\end{tabular}
+    }
+\caption{Just for giggles: continuation of Table~\ref{tab:perf_wrt_components}.}
+% \label{tab:perf_wrt_components}
+\end{table}
