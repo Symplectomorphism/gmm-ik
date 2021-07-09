@@ -120,7 +120,7 @@ function _M_step(r::ThreeLink)
     end
 end
 
-function execute_EM(r::ThreeLink; maxiter::Int=10)
+function execute_em!(r::ThreeLink; maxiter::Int=10)
     μ_error = Inf
     Σ_error = Inf
     k = 1
@@ -136,8 +136,8 @@ function execute_EM(r::ThreeLink; maxiter::Int=10)
         _E_step(r)
         _M_step(r)
 
-        μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M)
-        Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M)
+        μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M) / sum(norm(r.μ[:,i]) for i = 1:r.M)
+        Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M) / sum(norm(r.Σ[i]) for i = 1:r.M)
         println("Iteration: $k, |Δμ| = $(round(μ_error, digits=4)), |ΔΣ| = $(round(Σ_error, digits=4))")
 
         k += 1
@@ -169,13 +169,32 @@ function prediction(r::ThreeLink, x::Vector)
     end
 
 
-    for i = 1:r.M
-        θ_tilde += β[i] * μ_θ_tilde[:,i]
-        Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
-    end
-    return θ_tilde, Σ_θθ_tilde_final
+    # for i = 1:r.M
+    #     θ_tilde += β[i] * μ_θ_tilde[:,i]
+    #     Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
+    # end
+    # return θ_tilde, Σ_θθ_tilde_final
 
-    # # SLSE
-    # value, ind = findmax([pdf(d[i], x) for i =1:r.M])
-    # return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
+    # SLSE
+    value, ind = findmax([pdf(d[i], x) for i =1:r.M])
+    return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
+end
+
+
+function use_gmm(r::ThreeLink)
+    chol = Array{UpperTriangular{Float64, Matrix{Float64}}, 1}()
+    his = History[]
+    push!(his, History(0.0, "aha"))
+
+    for i = 1:r.M
+        push!(chol, cholesky(1/2*(r.Σ[i]+r.Σ[i]')).U)
+    end
+
+    gmm = GMM(r.π, convert(Matrix, r.μ'), chol, his, 0)
+    em!(gmm, convert(Matrix, r.ξ'), nIter=100)
+
+    r.μ[:] = gmm.μ[:]
+    for i = 1:r.M
+        r.Σ[i] = gmm.Σ[i]'*gmm.Σ[i]
+    end
 end

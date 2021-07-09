@@ -1,3 +1,4 @@
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GaussianMixtures = "cc18c42c-b769-54ff-9e2a-b28141a64aae"
