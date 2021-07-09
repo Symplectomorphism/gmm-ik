@@ -2,6 +2,16 @@ using Random, Distributions
 using Clustering
 using LinearAlgebra
 using GaussianMixtures
+using PyPlot
+
+"""
+The following book and papers were used as references:
+Book: McLachlan, Krishnan, "The EM Algorithm and Extensions," ISBN: 9780470191606, 0470191600
+Papers: Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation"
+        Xu, et al., "Data-driven methods towards learning the highly nonlinear 
+                     inverse kinematics of tendon-driven surgical manipulators"
+                     DOI: 10.1002/rcs.1774
+"""
 
 struct ThreeLink
     θ::Matrix{Float64}
@@ -160,8 +170,9 @@ function prediction(r::ThreeLink, x::Vector)
 
     for i = 1:r.M
         μ_θ_tilde[:,i] = r.μ[3:5,i] + r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\(x - r.μ[1:2,i]))
-        push!(Σ_θθ_tilde, 
-            r.Σ[i][3:5,3:5] - r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\r.Σ[i][1:2,3:5]))
+
+        Σ_temp = r.Σ[i][3:5,3:5] - r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\r.Σ[i][1:2,3:5])
+        push!(Σ_θθ_tilde, 1/2*(Σ_temp + Σ_temp'))
 
         Σ = r.Σ[i][1:2,1:2]
         push!(d, MvNormal(r.μ[1:2,i], 1/2*(Σ + Σ')))
@@ -172,14 +183,17 @@ function prediction(r::ThreeLink, x::Vector)
         β[i] = r.π[i] * pdf(d[i], x) / denominator
     end
 
-
+    # This one is from the paper: Xu, et al. "Data-driven ..." DOI: 10.1002/rcs.1774
+    #
     # for i = 1:r.M
     #     θ_tilde += β[i] * μ_θ_tilde[:,i]
     #     Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
     # end
     # return θ_tilde, Σ_θθ_tilde_final
 
-    # SLSE
+
+    # Single component least-squares estimation
+    # From "Ghahramani, Solving Inverse Problems Using an EM Approach To Density Estimation"
     value, ind = findmax([pdf(d[i], x) for i =1:r.M])
     return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
@@ -220,4 +234,62 @@ function test_training(r::ThreeLink; nPoints::Int=200)
     cost = [norm(fk(pred_θ[:,i]) - test_x[:,i]) for i = 1:nPoints]
 
     return mean(cost)
+end
+
+function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
+    xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
+    ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
+    dx = Uniform(xmin, xmax)
+    dy = Uniform(ymin, ymax)
+    x = [rand(dx), rand(dy)]
+
+
+    μ, Σ = prediction(r, x)
+    d = MvNormal(μ, Σ)
+    θ_dist = rand(d, nPoints)
+    x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
+    
+    fig = figure(1);
+    fig.clf()
+    ax = fig.add_subplot(1,1,1)
+
+    for i = 1:nPoints
+        p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
+        p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
+        p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
+
+        ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
+        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.3)
+        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.3)
+        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.3)
+
+        ax.plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
+    end
+    plot(x[1], x[2], marker="o", markersize=16)
+end
+
+function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=100)
+    μ, Σ = prediction(r, x)
+    d = MvNormal(μ, Σ)
+    θ_dist = rand(d, nPoints)
+    x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
+    
+    fig = figure(1);
+    fig.clf()
+    ax = fig.add_subplot(1,1,1)
+
+    for i = 1:nPoints
+        p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
+        p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
+        p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
+
+        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.3)
+
+        plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
+    end
+    plot(x[1], x[2], marker="o", markersize=16)
 end
