@@ -3,6 +3,7 @@ using Clustering
 using LinearAlgebra
 using GaussianMixtures
 using PyPlot
+using BSON: @save, @load     # enable if you want to load one of the .bson files
 
 """
 The following book and papers were used as references:
@@ -236,6 +237,33 @@ function test_training(r::ThreeLink; nPoints::Int=200)
     return mean(cost)
 end
 
+
+function solve_optimization(x::Vector)
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_optimization(x::Vector; start::Vector)
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+    optimize!(model)
+    return value.(θ)
+end
+
+
 function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
     ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
@@ -270,6 +298,7 @@ function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     plot(x[1], x[2], marker="o", markersize=16)
 end
 
+
 function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=100)
     μ, Σ = prediction(r, x)
     d = MvNormal(μ, Σ)
@@ -286,11 +315,11 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
         p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
 
         ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
-        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.3)
-        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.3)
-        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.3)
-        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.3)
-        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.2)
+        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
+        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
 
         plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
     end
