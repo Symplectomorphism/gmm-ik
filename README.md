@@ -25,5 +25,5 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     structure.
   - ```execute_em!(r; maxiter=100)``` -- It takes around 22-23 iterations to
     converge to the specified (hard-coded) tolerance values.
-  - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
-    points and plots the estimation.
+  - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates the test
+    point and plots the estimation.
