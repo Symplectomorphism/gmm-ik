@@ -22,4 +22,7 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
   - ```julia --project=.```
   - ```include("three_link.jl")```
   - ```r = ThreeLink(N=1001, M=61)```
-  - ```execute_em!(r; maxiter=100)```
+  - ```execute_em!(r; maxiter=100)``` (It takes around 22-23 iterations to
+    converge to the specified (hard-coded) tolerance values).
+  - ```generate_cartesian_distribution(r, nPoints=100)``` (Generates test points
+    and plots the estimation).
