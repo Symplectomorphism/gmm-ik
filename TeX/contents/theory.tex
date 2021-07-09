@@ -110,7 +110,7 @@ approximate a function in the following way:
 
 Given the input vector $\mathrm{x}_i$, we extract all the relevant information
 from the joint probability density function (pdf) $P(\mathrm{x}, \theta)$ by
-marginalizing to $P(\theta \mid \mathrm{x})$. For a single Gaussian this
+conditionalizing to $P(\theta \mid \mathrm{x})$. For a single Gaussian this
 conditional density is normal, and by linearity, since $P(\mathrm{x}, \theta)$
 is a mixture of Gaussians, so is $P(\theta \mid \mathrm{x})$. Let me elaborate
 on how to compute this posterior (conditional) density for Gaussian mixture

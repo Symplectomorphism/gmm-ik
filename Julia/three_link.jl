@@ -44,7 +44,7 @@ function ThreeLink(θ, x, ξ, M, N)
 end
 
 function ThreeLink(;N::Int=10)
-    d = Uniform(-90*π/180, 90*π/180)
+    d = Uniform(-180*π/180, 180*π/180)
     θ = rand(d, 3, N)
     x = zeros(2, N)
     ξ = zeros(5, N)
@@ -60,7 +60,7 @@ function ThreeLink(;N::Int=10)
 end
 
 function ThreeLink(;N::Int=100, M::Int=10)
-    d = Uniform(-90*π/180, 90*π/180)
+    d = Uniform(-180*π/180, 180*π/180)
     θ = rand(d, 3, N)
     x = zeros(2, N)
     ξ = zeros(5, N)
@@ -295,4 +295,49 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
         plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
     end
     plot(x[1], x[2], marker="o", markersize=16)
+end
+
+
+function plot_marginal(r::ThreeLink, x::Vector)
+    μ, Σ = prediction(r, x)
+    μ12 = μ[1:2]
+    Σ12 = Σ[1:2,1:2]
+    d = MvNormal(μ12, Σ12)
+
+    fig = figure(2)
+    
+    ax = fig.add_subplot(1,2,1)
+    ax.cla()
+
+    θ1 = range(-90*π/180; stop=0*π/180, length=101)'
+    θ2 = range(0*π/180; stop=120*π/180, length=99)
+    # θ1 = range(-180*π/180; stop=180*π/180, length=101)'
+    # θ2 = range(-180*π/180; stop=180*π/180, length=101)
+    z = zeros(length(θ2), length(θ1))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            z[i,j] = pdf(d, [θ1[j], θ2[i]])
+        end
+    end
+    cs = ax.contour(θ1, θ2, z, levels=0.05:0.1:0.95)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.clabel(cs, cs.levels, inline=true, fontsize=10)
+
+
+    s = svd(Σ12)
+    B = s.U[:,1]'
+    μ_reduced = B * μ12
+    Σ_reduced = B * Σ12 * B'
+    d_reduced = Normal(μ_reduced, Σ_reduced)
+
+    θ1 = range(-90*π/180; stop=0*π/180, length=101)
+    θ2 = range(0*π/180; stop=120*π/180, length=101)
+    y = B[1]*θ1 + B[2]*θ2
+
+    ax = fig.add_subplot(1,2,2)
+    ax.cla()
+    ax.plot(y, pdf(d_reduced, y), linewidth=2)
+    ax.set_xlabel("y = $(round(B[1], digits=2)) θ1 + $(round(B[2], digits=2)) θ2", fontsize=16)
+    ax.set_ylabel(L"p(y)", fontsize=16)
 end
