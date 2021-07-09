@@ -33,10 +33,10 @@ function ThreeLink(θ, x, ξ, M, N)
 end
 
 function ThreeLink(;N::Int=10)
-    d = Uniform(-π, π)
+    d = Uniform(-30*π/180, 30*π/180)
     θ = rand(d, 3, N)
-    x = rand(d, 2, N)
-    ξ = rand(d, 5, N)
+    x = zeros(2, N)
+    ξ = zeros(5, N)
     M = max(1, N ÷ 100)
 
     for i = 1:N
@@ -49,14 +49,15 @@ function ThreeLink(;N::Int=10)
 end
 
 function ThreeLink(;N::Int=100, M::Int=10)
-    d = Uniform(-π, π)
+    d = Uniform(-30*π/180, 30*π/180)
     θ = rand(d, 3, N)
-    x = rand(d, 2, N)
-    ξ = rand(d, 5, N)
+    x = zeros(2, N)
+    ξ = zeros(5, N)
     # M = max(1, N ÷ 100)
 
     for i = 1:N
-        fk!(x[:,i], θ[:,i])
+        # fk!(x[:,i], θ[:,i])
+        x[:,i] = fk(θ[:,i])
         ξ[:,i] = vcat(x[:,i], θ[:,i])
     end
 
@@ -88,11 +89,11 @@ function _E_step(r::ThreeLink)
     for i = 1:r.N
         for j = 1:r.M
             numerator = 1/sqrt(det(r.Σ[j])) * 
-                exp(-1/2* dot((r.ξ[:,i] - r.μ[:,j]), r.Σ[j]\(r.ξ[:,i] - r.μ[:,j])) )
+                exp(-1/2 * dot((r.ξ[:,i] - r.μ[:,j]), r.Σ[j]\(r.ξ[:,i] - r.μ[:,j])) )
             denominator = 0.0
             for l = 1:r.M
                 denominator += 1/sqrt(det(r.Σ[l])) * 
-                    exp(-1/2* dot((r.ξ[:,i] - r.μ[:,l]), r.Σ[l]\(r.ξ[:,i] - r.μ[:,l])) )
+                    exp(-1/2 * dot((r.ξ[:,i] - r.μ[:,l]), r.Σ[l]\(r.ξ[:,i] - r.μ[:,l])) )
             end
             r.h[i,j] = numerator / denominator
         end
@@ -110,13 +111,15 @@ function _M_step(r::ThreeLink)
             numerator_μ += r.h[i,j] * r.ξ[:,i]
             normalizer += r.h[i,j]
         end
+        r.μ[:,j] = numerator_μ / normalizer
+        
         for i = 1:r.N
             numerator_Σ += r.h[i,j] * (r.ξ[:,i] - r.μ[:,j]) * (r.ξ[:,i] - r.μ[:,j])'
         end
 
         r.π[j] = normalizer / r.N
-        r.μ[:,j] = numerator_μ / normalizer
         r.Σ[j] = numerator_Σ / normalizer
+        r.Σ[j] = 1/2 * (r.Σ[j] + r.Σ[j]')           # Make sure it is Hermitian.
     end
 end
 
@@ -169,29 +172,33 @@ function prediction(r::ThreeLink, x::Vector)
     end
 
 
-    # for i = 1:r.M
-    #     θ_tilde += β[i] * μ_θ_tilde[:,i]
-    #     Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
-    # end
-    # return θ_tilde, Σ_θθ_tilde_final
+    for i = 1:r.M
+        θ_tilde += β[i] * μ_θ_tilde[:,i]
+        Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
+    end
+    return θ_tilde, Σ_θθ_tilde_final
 
-    # SLSE
-    value, ind = findmax([pdf(d[i], x) for i =1:r.M])
-    return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
+    # # SLSE
+    # value, ind = findmax([pdf(d[i], x) for i =1:r.M])
+    # return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
 
 
-function use_gmm(r::ThreeLink)
+function use_gmm!(r::ThreeLink; nIter::Int=100)
+    # This function uses the Julia package GaussianMixtures
+    # It executes much faster than my code!
+
     chol = Array{UpperTriangular{Float64, Matrix{Float64}}, 1}()
     his = History[]
     push!(his, History(0.0, "aha"))
 
     for i = 1:r.M
-        push!(chol, cholesky(1/2*(r.Σ[i]+r.Σ[i]')).U)
+        # push!(chol, cholesky(1/2*(r.Σ[i]+r.Σ[i]')).U)
+        push!(chol, cholesky(r.Σ[i]).U)
     end
 
     gmm = GMM(r.π, convert(Matrix, r.μ'), chol, his, 0)
-    em!(gmm, convert(Matrix, r.ξ'), nIter=100)
+    em!(gmm, convert(Matrix, r.ξ'), nIter=nIter)
 
     r.μ[:] = gmm.μ[:]
     for i = 1:r.M
