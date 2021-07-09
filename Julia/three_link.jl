@@ -199,6 +199,12 @@ function prediction(r::ThreeLink, x::Vector)
     return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
 
+function rand_prediction(r::ThreeLink, x::Vector)
+    μ, Σ = prediction(r, x)
+    d = MvNormal(μ, Σ)
+    return rand(d)
+end
+
 
 function use_gmm!(r::ThreeLink; nIter::Int=100)
     # This function uses the Julia package GaussianMixtures

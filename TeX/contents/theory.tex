@@ -201,9 +201,23 @@ were as follows:
     \leq N$ sets so as to minimize the within-cluster sum-of-squares
     cost~\cite{wiki:K-means_clustering}.
 \end{enumerate}
+%
+\begin{wrapfigure}{r}{0.5\textwidth}
+    \vspace{-20mm}
+	\centering
+	\includegraphics[width=0.5\textwidth]{./figures/GMM_sample_solution.eps}
+	\caption{A visualization of the algorithm. The desired end-effector
+    position, $\mathrm{x}$ is depicted by the big blue circle. The learned
+    posterior distribution $P(\theta \mid \mathrm{x})$ is used to sample $100$
+    solutions, which yields the robot configurations shown in orange. The actual
+    location of the end-effector these orange configurations yield are depicted
+    by the black stars in the plot.}
+    \label{fig:example_sol}
+    \vspace{-30mm}
+\end{wrapfigure}
+%
 
-
-\subsection{Summary of the Full Algorithm}
+\subsection{Summary of the Algorithm}
 %
 Let me provide a brief explanation of the method.
 

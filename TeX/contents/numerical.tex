@@ -1,3 +1,14 @@
 \section{Numerical Example}
 \label{sec:numerical}
+%
 
+A Julia implementation of this algorithm may be found
+in~\cite{satici_implementation}. The implementation allows the user to specify
+how many data points to randomly generate and how many components to use in the
+Gaussian mixture model. Once these are specified, the model can be trained by 
+executing the \texttt{execute\_em!} function. 
+
+The trained model may be tested by running the \texttt{test\_training} function,
+which generates $200$ extra points and returns the average error incurred by the
+output of the algorithm. A visualization of the performance of the algorithm is
+depicted in Figure~\ref{fig:example_sol}.
