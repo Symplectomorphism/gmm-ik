@@ -13,6 +13,7 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     learned joint probability distribution P(x, θ).
   - P(θ | x) is then sampled to generate the configuration of each link (in
     orange). The end-effector locations that result from this configuration are
-    plotted by a black star.
+    plotted by black stars.
+  - The green triangles depict the locations of the revolute joints.
   
 ![Sample solution](./Julia/Figure_3.png)
