@@ -1,6 +1,7 @@
 using Random, Distributions
 using Clustering
 using LinearAlgebra
+using GaussianMixtures
 
 struct ThreeLink
     θ::Matrix{Float64}
@@ -172,21 +173,22 @@ function prediction(r::ThreeLink, x::Vector)
     end
 
 
-    for i = 1:r.M
-        θ_tilde += β[i] * μ_θ_tilde[:,i]
-        Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
-    end
-    return θ_tilde, Σ_θθ_tilde_final
+    # for i = 1:r.M
+    #     θ_tilde += β[i] * μ_θ_tilde[:,i]
+    #     Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
+    # end
+    # return θ_tilde, Σ_θθ_tilde_final
 
-    # # SLSE
-    # value, ind = findmax([pdf(d[i], x) for i =1:r.M])
-    # return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
+    # SLSE
+    value, ind = findmax([pdf(d[i], x) for i =1:r.M])
+    return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
 
 
 function use_gmm!(r::ThreeLink; nIter::Int=100)
     # This function uses the Julia package GaussianMixtures
     # It executes much faster than my code!
+    # It doesn't seem to work as well, though...
 
     chol = Array{UpperTriangular{Float64, Matrix{Float64}}, 1}()
     his = History[]
@@ -204,4 +206,18 @@ function use_gmm!(r::ThreeLink; nIter::Int=100)
     for i = 1:r.M
         r.Σ[i] = gmm.Σ[i]'*gmm.Σ[i]
     end
+end
+
+
+function test_training(r::ThreeLink; nPoints::Int=200)
+    xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
+    ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
+    dx = Uniform(xmin, xmax)
+    dy = Uniform(ymin, ymax)
+
+    test_x = convert(Matrix, hcat(rand(dx, nPoints), rand(dy, nPoints))')
+    pred_θ = hcat([prediction(r, test_x[:,i])[1] for i = 1:nPoints]...)
+    cost = [norm(fk(pred_θ[:,i]) - test_x[:,i]) for i = 1:nPoints]
+
+    return mean(cost)
 end
