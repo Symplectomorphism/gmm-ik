@@ -21,8 +21,9 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
 * Example usage:
   - ```julia --project=.```
   - ```include("three_link.jl")```
-  - ```r = ThreeLink(N=1001, M=61)```
-  - ```execute_em!(r; maxiter=100)``` (It takes around 22-23 iterations to
-    converge to the specified (hard-coded) tolerance values).
-  - ```generate_cartesian_distribution(r, nPoints=100)``` (Generates test points
-    and plots the estimation).
+  - ```r = ThreeLink(N=1001, M=61)``` -- Constructs the mechanism and the GMM
+    structure.
+  - ```execute_em!(r; maxiter=100)``` -- It takes around 22-23 iterations to
+    converge to the specified (hard-coded) tolerance values.
+  - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
+    points and plots the estimation.
