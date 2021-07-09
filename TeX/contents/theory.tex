@@ -76,12 +76,12 @@ Gaussian $j$, as defined by the mean $\hat{\mu}_j$ and covariance matrix
 $\hat{\Sigma}_j$ estimated at time step $k$, generated data point $i$:
 %
 \begin{equation}
-    h_{ij}^k = \frac{\abs{\hat{\Sigma}_j^k}^{-\frac{1}{2}} 
-    \exp{\left\{-\frac{1}{2}\left( \xi_i - \hat{\mu}_j^k \right)^\top 
-    ({\hat{\Sigma}_j^k})^{-1} \left( \xi_i - \hat{\mu}_j^k \right) \right\}}  }
-    {\sum_{l=1}^M \abs{\hat{\Sigma}_j^k}^{-\frac{1}{2}} 
-    \exp{\left\{-\frac{1}{2}\left( \xi_i - \hat{\mu}_l^k \right)^\top 
-    ({\hat{\Sigma}_l^k})^{-1} \left( \xi_i - \hat{\mu}_l^k \right) \right\}} }.
+    h_{ij}^{(k)} = \frac{\abs{\hat{\Sigma}_j^{(k)}}^{-\frac{1}{2}} 
+    \exp{\left\{-\frac{1}{2}\left( \xi_i - \hat{\mu}_j^{(k)} \right)^\top 
+    \left({\hat{\Sigma}_j^{(k)}}\right)^{-1} \left( \xi_i - \hat{\mu}_j^{(k)} \right) \right\}}  }
+    {\sum_{l=1}^M \abs{\hat{\Sigma}_j^{(k)}}^{-\frac{1}{2}} 
+    \exp{\left\{-\frac{1}{2}\left( \xi_i - \hat{\mu}_l^{(k)} \right)^\top 
+    \left({\hat{\Sigma}_l^{(k)}}\right)^{-1} \left( \xi_i - \hat{\mu}_l^{(k)} \right) \right\}} }.
     \label{eq:E-step}
 \end{equation}
 %
@@ -89,13 +89,15 @@ The M-step then involves re-estimating the means and covariances of the
 Gaussians along with the mixing proportions using the data set weighted by the
 $h_{ij}$:
 %
-\begin{equation}
-    \hat{\mu}_j^{k+1} = \frac{\sum_{i=1}^N h_{ij}^k\xi_i}{\sum_{i=1}^N h_{ij}^k}, \quad
-    \hat{\Sigma}_j^{k+1} = \frac{\sum_{i=1}^N h_{ij}^k \left(\xi_i - \hat{\mu}_j^{k+1}\right)
-                    \left(\xi_i - \hat{\mu}_j^{k+1}\right)^\top}{\sum_{i=1}^N h_{ij}^k}, \quad
-    \pi_j^{k+1} = \frac{1}{N}\sum_{i=1}^N h_{ij}^k.
+\begin{align}
+    \begin{split}
+    \hat{\mu}_j^{(k+1)} &= \frac{\sum_{i=1}^N h_{ij}^{(k)}\xi_i}{\sum_{i=1}^N h_{ij}^{(k)}}, \\
+    \hat{\Sigma}_j^{(k+1)} &= \frac{\sum_{i=1}^N h_{ij}^{(k)} \left(\xi_i - \hat{\mu}_j^{(k+1)}\right)
+                    \left(\xi_i - \hat{\mu}_j^{(k+1)}\right)^\top}{\sum_{i=1}^N h_{ij}^{(k)}}, \\
+    \pi_j^{(k+1)} &= \frac{1}{N}\sum_{i=1}^N h_{ij}^{(k)}.
+    \end{split}
     \label{eq:M-step}
-\end{equation}
+\end{align}
 
 
 \subsection{Supervised Learning}
@@ -179,6 +181,22 @@ estimate $\hat{\theta}_i$ of $\theta_i = f(x_i)$.
 
 
 \subsection{Initialization of EM}
+%
+The EM algorithm is iterative, which means, in particular, that we need to start
+it off with an initial guess for the parameters. Clearly, the better the initial
+guess, the faster/easier the convergence will be. The initial guesses I used
+were as follows:
+
+\begin{enumerate}
+    \item For $\pi_j$, I used a uniform distribution: $\pi_j^{(0)} =
+    \frac{1}{M}$ for all $j = 1, \ldots, M$.
+    \item For each $j$, I started the covariance matrix as a multiple of the
+    identity matrix: $\Sigma_j^{(0)} = \alpha_j I$.
+    \item I used the $k$-means clustering method to generate initial values for
+    $\mu_j^{(0)}$. This method aims to partition the $N$ observations into $M
+    \leq N$ sets so as to minimize the within-cluster sum-of-squares
+    cost~\cite{wiki:K-means_clustering}.
+\end{enumerate}
 
 
-\subsection{Summary of the Full Algorithm}
+% \subsection{Summary of the Full Algorithm}
