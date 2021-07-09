@@ -285,8 +285,11 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
         p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
         p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
 
+        ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
         ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.3)
         ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.3)
+        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.3)
         ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.3)
 
         plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
