@@ -4,7 +4,7 @@ Implements expectation maximization to train a Gaussian Mixture Model that learn
 * This is a Julia implementation of the example provided in 
 Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation."
 
-* In this example 1001 data points have been generated and 60 Gaussian
+* In this example 1001 data points have been generated and 61 Gaussian
   distributions are used in a Gaussian mixture model to represent the inverse
   kinematics.
 
@@ -17,3 +17,9 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
   - The green triangles depict the locations of the revolute joints.
   
 ![Sample solution](./Julia/Figure_3.png)
+
+* Example usage:
+  - ```julia --project=.```
+  - ```include("three_link.jl")```
+  - ```r = ThreeLink(N=1001, M=61)```
+  - ```execute_em!(r; maxiter=100)```
