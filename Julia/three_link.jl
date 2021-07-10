@@ -274,13 +274,21 @@ function solve_optimization(x::Vector; start::Vector)
 end
 
 
-function hyperparameter_training()
-    N = 2001
+function hypertrain_M(;N=2001)
     for M = 181:10:201
         r = ThreeLink(N=N, M=M)
         try execute_em!(r; maxiter=100, verbose=true) catch end
         avg_cost = test_training(r; nPoints=200)
         println("Average Cost($M) = $(avg_cost)")
+    end
+end
+
+function hypertrain_N(;M=101)
+    for N = 1001:1000:10001
+        r = ThreeLink(N=N, M=M)
+        try execute_em!(r; maxiter=100, verbose=true) catch end
+        avg_cost = test_training(r; nPoints=200)
+        println("Average Cost($M) = $(avg_cost)\n")
     end
 end
 
