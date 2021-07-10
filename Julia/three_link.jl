@@ -276,7 +276,7 @@ end
 
 function hyperparameter_training()
     N = 2001
-    for M = 131:10:151
+    for M = 181:10:201
         r = ThreeLink(N=N, M=M)
         try execute_em!(r; maxiter=100, verbose=true) catch end
         avg_cost = test_training(r; nPoints=200)
@@ -354,15 +354,19 @@ function plot_marginal(r::ThreeLink, x::Vector)
     Σ12 = Σ[1:2,1:2]
     d = MvNormal(μ12, Σ12)
 
+    # μ_marginalized_θ3 = μ[1:2]
+    # temp = Σ[1:2,1:2] - Σ[3,1:2]*1/Σ[3,3]*Σ[1:2,3]'
+    # Σ_marginalized_θ3 = 1/2 * (temp + temp')
+    # d = MvNormal(μ_marginalized_θ3, Σ_marginalized_θ3)
+
+
     fig = figure(2)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
 
-    θ1 = range(-90*π/180; stop=0*π/180, length=101)'
-    θ2 = range(0*π/180; stop=120*π/180, length=99)
-    # θ1 = range(-180*π/180; stop=180*π/180, length=101)'
-    # θ2 = range(-180*π/180; stop=180*π/180, length=101)
+    θ1 = range(-1; stop=1, length=101)
+    θ2 = range(-2; stop=1, length=99)
     z = zeros(length(θ2), length(θ1))
     for i = 1:length(θ2)
         for j = 1:length(θ1)
@@ -375,19 +379,78 @@ function plot_marginal(r::ThreeLink, x::Vector)
     ax.clabel(cs, cs.levels, inline=true, fontsize=10)
 
 
-    s = svd(Σ12)
-    B = s.U[:,1]'
-    μ_reduced = B * μ12
-    Σ_reduced = B * Σ12 * B'
-    d_reduced = Normal(μ_reduced, Σ_reduced)
-
-    θ1 = range(-90*π/180; stop=0*π/180, length=101)
-    θ2 = range(0*π/180; stop=120*π/180, length=101)
-    y = B[1]*θ1 + B[2]*θ2
-
-    ax = fig.add_subplot(1,2,2)
+    PyPlot.PyObject(PyPlot.axes3D)      # PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
+    ax = fig.add_subplot(1,2,2, projection="3d")
     ax.cla()
-    ax.plot(y, pdf(d_reduced, y), linewidth=2)
-    ax.set_xlabel("y = $(round(B[1], digits=2)) θ1 + $(round(B[2], digits=2)) θ2", fontsize=16)
-    ax.set_ylabel(L"p(y)", fontsize=16)
+
+    X = θ1' .* ones(length(θ2))
+    Y = ones(length(θ1))' .* θ2
+    Z = zeros(size(X))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = pdf(d, [X[i,j], Y[i,j]])
+        end
+    end
+    ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+
+
+    # s = svd(Σ12)
+    # B = s.U[:,1]'
+    # μ_reduced = B * μ12
+    # Σ_reduced = B * Σ12 * B'
+    # d_reduced = Normal(μ_reduced, Σ_reduced)
+
+    # θ1 = range(-90*π/180; stop=0*π/180, length=101)
+    # θ2 = range(0*π/180; stop=120*π/180, length=101)
+    # y = B[1]*θ1 + B[2]*θ2
+
+    # ax = fig.add_subplot(1,2,2)
+    # ax.cla()
+    # ax.plot(y, pdf(d_reduced, y), linewidth=2)
+    # ax.set_xlabel("y = $(round(B[1], digits=2)) θ1 + $(round(B[2], digits=2)) θ2", fontsize=16)
+    # ax.set_ylabel(L"p(y)", fontsize=16)
+end
+
+
+
+function plot_marginals_sequentially(x::Vector; maxiter::Int=9)
+    r = ThreeLink(N=2001, M=101)
+    fig = figure(3)
+    fig.clf()
+    PyPlot.PyObject(PyPlot.axes3D) 
+
+    θ1 = range(-3; stop=3, length=101)
+    θ2 = range(-3; stop=3, length=99)
+
+    X = θ1' .* ones(length(θ2))
+    Y = ones(length(θ1))' .* θ2
+    Z = zeros(size(X))
+
+    for n = 1:maxiter+1
+        μ, Σ = prediction(r, x)
+        μ12 = μ[1:2]
+        Σ12 = Σ[1:2,1:2]
+        d = MvNormal(μ12, Σ12)
+
+        for i = 1:length(θ2)
+            for j = 1:length(θ1)
+                Z[i,j] = pdf(d, [X[i,j], Y[i,j]])
+            end
+        end
+
+        ax = fig.add_subplot(2,maxiter÷2+1,n, projection="3d")
+        ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
+        ax.view_init(elev=30, azim=60)
+        ax.set_xlabel(L"θ_1", fontsize=16)
+        ax.set_ylabel(L"θ_2", fontsize=16)
+        ax.tick_params(labelsize=14)
+
+        execute_em!(r, maxiter=1)
+    end
+
+    # fig.suptitle("Evolution of the posterior distribution", fontsize=16)
+    fig.savefig("../TeX/figures/belief_evolution.eps", dpi=600, 
+        bbox_inches="tight", format="eps")
 end

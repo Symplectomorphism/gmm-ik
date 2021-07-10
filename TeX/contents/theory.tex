@@ -190,8 +190,9 @@ The EM algorithm is iterative, which means, in particular, that we need to start
 it off with an initial guess for the parameters. Clearly, the better the initial
 guess, the faster/easier the convergence will be. The initial guesses I used
 were as follows:
-
+%
 \begin{enumerate}
+    \setlength\itemsep{0.0em}
     \item For $\pi_j$, I used a uniform distribution: $\pi_j^{(0)} =
     \frac{1}{M}$ for all $j = 1, \ldots, M$.
     \item For each $j$, I started the covariance matrix as a multiple of the
@@ -206,12 +207,13 @@ were as follows:
     \vspace{-20mm}
 	\centering
 	\includegraphics[width=0.5\textwidth]{./figures/GMM_sample_solution.eps}
-	\caption{A visualization of the algorithm. The desired end-effector
-    position, $\mathrm{x}$ is depicted by the big blue circle. The learned
-    posterior distribution $P(\theta \mid \mathrm{x})$ is used to sample $100$
-    solutions, which yields the robot configurations shown in orange. The actual
-    location of the end-effector these orange configurations yield are depicted
-    by the black stars in the plot.}
+	\caption{A visualization of the algorithm run with $N=2001$, $M=101$ over
+    the range $-\pi \leq \theta_1, \theta_2, \theta_3 \leq \pi$. The desired end-effector position, $\mathrm{x} = \bmat{1.5 &
+    -0.4}$, is depicted by the big blue circle. The learned posterior
+    distribution $P(\theta \mid \mathrm{x})$ is used to sample $100$ solutions,
+    which yield the configurations shown in orange. The actual location of the
+    end-effector the orange configurations yield are depicted by the black
+    stars.}
     \label{fig:example_sol}
     \vspace{-30mm}
 \end{wrapfigure}
@@ -222,6 +224,7 @@ were as follows:
 Let me provide a brief run-down of the method.
 
 \begin{enumerate}
+    \setlength\itemsep{0em}
     \item Randomly select the data points $\{\theta_1, \ldots, \theta_N\}$ and
     generate the corresponding $\{\mathrm{x}_1, \ldots, \mathrm{x}_N\}$.
     %
