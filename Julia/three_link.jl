@@ -136,11 +136,13 @@ function _M_step(r::ThreeLink)
     end
 end
 
-function execute_em!(r::ThreeLink; maxiter::Int=10, verbose::Bool=true)
+function execute_em!(r::ThreeLink; 
+    maxiter::Int=10, tol_μ::Float64=1e-3, tol_Σ::Float64=1e-2, verbose::Bool=true)
+
     μ_error = Inf
     Σ_error = Inf
     k = 1
-    while μ_error > 1e-3 || Σ_error > 1e-2
+    while μ_error > tol_μ|| Σ_error > tol_Σ
         μ = zeros(5,r.M)
         Σ = Array{Matrix{Float64}, 1}()
         for i = 1:r.M
@@ -156,7 +158,7 @@ function execute_em!(r::ThreeLink; maxiter::Int=10, verbose::Bool=true)
         Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M) / sum(norm(r.Σ[i]) for i = 1:r.M)
         
         if verbose
-            println("Iteration: $k, |Δμ| = $(round(μ_error, digits=4)), |ΔΣ| = $(round(Σ_error, digits=4))")
+            println("Iteration: $k, |Δμ| = $(round(μ_error, digits=6)), |ΔΣ| = $(round(Σ_error, digits=6))")
         end
 
         k += 1
@@ -201,6 +203,17 @@ function prediction(r::ThreeLink, x::Vector)
     # From "Ghahramani, Solving Inverse Problems Using an EM Approach To Density Estimation"
     value, ind = findmax([pdf(d[i], x) for i =1:r.M])
     return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
+end
+
+
+function predict_elbow_down(r::ThreeLink, x::Vector)
+    μ, Σ = prediction(r, x)
+    d = MvNormal(μ, Σ)
+    θ = rand(d)
+    while θ[2] <= 0
+        θ = rand(d)
+    end
+    return θ
 end
 
 function rand_prediction(r::ThreeLink, x::Vector)
@@ -273,22 +286,36 @@ function solve_optimization(x::Vector; start::Vector)
     return value.(θ)
 end
 
+function solve_elbow_down_optimization(x::Vector; start::Vector)
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[2] >= 0)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+    optimize!(model)
+    return value.(θ)
+end
+
 
 function hypertrain_M(;N=2001)
     for M = 181:10:201
         r = ThreeLink(N=N, M=M)
         try execute_em!(r; maxiter=100, verbose=true) catch end
         avg_cost = test_training(r; nPoints=200)
-        println("Average Cost($M) = $(avg_cost)")
+        println("Average Cost(N=$M) = $(avg_cost)")
     end
 end
 
 function hypertrain_N(;M=101)
-    for N = 1001:1000:10001
+    for N = 1001:1000:7001
         r = ThreeLink(N=N, M=M)
         try execute_em!(r; maxiter=100, verbose=true) catch end
         avg_cost = test_training(r; nPoints=200)
-        println("Average Cost($M) = $(avg_cost)\n")
+        println("Average Cost(N=$N) = $(avg_cost)\n")
     end
 end
 
@@ -373,8 +400,8 @@ function plot_marginal(r::ThreeLink, x::Vector)
     ax = fig.add_subplot(1,2,1)
     ax.cla()
 
-    θ1 = range(-1; stop=1, length=101)
-    θ2 = range(-2; stop=1, length=99)
+    θ1 = range(-2; stop=0.0, length=101)
+    θ2 = range(0.0; stop=3.0, length=99)
     z = zeros(length(θ2), length(θ1))
     for i = 1:length(θ2)
         for j = 1:length(θ1)

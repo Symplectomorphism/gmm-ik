@@ -31,7 +31,7 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
   - ```include("three_link.jl")```
   - ```r = ThreeLink(N=1001, M=61)``` -- Constructs the mechanism and the GMM
     structure.
-  - ```execute_em!(r; maxiter=100)``` -- It takes around 22-23 iterations to
+  - ```execute_em!(r; maxiter=100)``` -- It takes around 20 iterations to
     converge to the specified (hard-coded) tolerance values.
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
