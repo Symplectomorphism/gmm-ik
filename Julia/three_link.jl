@@ -397,6 +397,7 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
 
 
     fig = figure(2)
+    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
@@ -432,6 +433,10 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
     ax.set_xlabel(L"θ_1", fontsize=16)
     ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.view_init(elev=38, azim=-15)
+
+    fig.savefig("../TeX/figures/marginal.eps", dpi=600, 
+        bbox_inches="tight", format="eps")
 
 
     # s = svd(Σ12)

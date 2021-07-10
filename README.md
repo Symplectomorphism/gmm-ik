@@ -35,3 +35,9 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     converge to the specified (hard-coded) tolerance values.
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
+
+
+* The posterior distribution over θ1 and θ2 given x = [-1.5, -0.4] marginalized
+  over θ3 for visualization purposes may be seen below
+
+![Marginal distribution](./TeX/figures/marginal.eps)
