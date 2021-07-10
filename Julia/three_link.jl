@@ -383,8 +383,9 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
 end
 
 
-function plot_marginal(r::ThreeLink, x::Vector)
+function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     μ, Σ = prediction(r, x)
+
     μ12 = μ[1:2]
     Σ12 = Σ[1:2,1:2]
     d = MvNormal(μ12, Σ12)
@@ -400,18 +401,20 @@ function plot_marginal(r::ThreeLink, x::Vector)
     ax = fig.add_subplot(1,2,1)
     ax.cla()
 
-    θ1 = range(-2; stop=0.0, length=101)
-    θ2 = range(0.0; stop=3.0, length=99)
+    θ1 = range(-3.4; stop=-2.15, length=201)
+    θ2 = range(-1.13; stop=1.33, length=99*2)
     z = zeros(length(θ2), length(θ1))
     for i = 1:length(θ2)
         for j = 1:length(θ1)
             z[i,j] = pdf(d, [θ1[j], θ2[i]])
         end
     end
-    cs = ax.contour(θ1, θ2, z, levels=0.05:0.1:0.95)
+    levels = sort( range(maximum(z); stop=0.05, length=10) )
+    cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
     ax.set_xlabel(L"θ_1", fontsize=16)
     ax.set_ylabel(L"θ_2", fontsize=16)
-    ax.clabel(cs, cs.levels, inline=true, fontsize=10)
+    ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    ax.set_aspect("equal")
 
 
     PyPlot.PyObject(PyPlot.axes3D)      # PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
