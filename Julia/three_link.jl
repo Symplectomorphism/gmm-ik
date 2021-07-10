@@ -435,8 +435,8 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     ax.set_ylabel(L"θ_2", fontsize=16)
     ax.view_init(elev=38, azim=-15)
 
-    fig.savefig("../TeX/figures/marginal.eps", dpi=600, 
-        bbox_inches="tight", format="eps")
+    fig.savefig("../TeX/figures/marginal.png", dpi=600, 
+        bbox_inches="tight", format="png")
 
 
     # s = svd(Σ12)

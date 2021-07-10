@@ -40,4 +40,4 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
 * The posterior distribution over θ1 and θ2 given x = [-1.5, -0.4] marginalized
   over θ3 for visualization purposes may be seen below
 
-![Marginal distribution](./TeX/figures/marginal.eps)
+![Marginal distribution](./TeX/figures/marginal.png)
