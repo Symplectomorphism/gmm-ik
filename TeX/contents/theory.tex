@@ -162,11 +162,11 @@ estimator. That is, given a particular input, the network returns the complete
 conditional density of the output. However, for the purposes of comparison to
 function approximation methods and since many applications require a single
 estimate of the output, I will outline two possible ways to obtain such an
-estimate $\hat{\theta}_i$ of $\theta_i = f(x_i)$.
+estimate $\hat{\theta}$ of $\theta = f(x)$.
 
 \begin{enumerate}
     \item Stochastic Sampling (STOCH) samples according to the distribution
-    $\hat{\theta}(\mathrm{x}_i) \sim P(\theta \mid \mathrm{x}_i)$:
+    $\hat{\theta}(\mathrm{x}) \sim P(\theta \mid \mathrm{x})$:
     %
     \begin{equation*}
         \hat{\theta} = \sum_{j=1}^M \beta_j \tilde{\mu}_{\theta,j}, \qquad
@@ -174,12 +174,12 @@ estimate $\hat{\theta}_i$ of $\theta_i = f(x_i)$.
     \end{equation*}
     %
     \item Single component least-squares estimation (SLSE) takes
-    $\hat{\theta}(\mathrm{x}_i) = \mathbb{E}\left( \theta \mid \mathrm{x}_i,
-    \omega_j \right)$, where $j = \arg \max_k \mc{N}\left(\mathrm{x} \mid
-    \mu_{\mathrm{x},k}, \Sigma_{\mathrm{xx}_k}\right)$. That is, for a given input,
-    SLSE picks the Gaussian with the highest posterior, and for that Gaussian
-    approximates the output with the least-squares estimator given by that
-    Gaussian alone.
+    $\hat{\theta}(\mathrm{x}) = \mathbb{E}\left( \theta \mid \mathrm{x},
+    \omega_j \right)$, where $j = \arg \max_k (\beta_k \mid \mathrm{x}) = \arg
+    \max_k \mc{N}\left(\mathrm{x} \mid \mu_{\mathrm{x},k},
+    \Sigma_{\mathrm{xx}_k}\right)$. That is, for a given input, SLSE picks the
+    Gaussian with the highest posterior, and for that Gaussian approximates the
+    output with the least-squares estimator given by that Gaussian alone.
 \end{enumerate}
 
 

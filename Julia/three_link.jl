@@ -166,15 +166,13 @@ function execute_em!(r::ThreeLink;
     end
 end
 
-function prediction(r::ThreeLink, x::Vector)
+function conditionalize(r::ThreeLink, x::Vector)
+    π_θ_tilde = zeros(r.M)
     μ_θ_tilde = zeros(3, r.M)
     Σ_θθ_tilde = Array{Matrix{Float64}, 1}()
     d = Array{MvNormal, 1}()
-    β = zeros(r.M)
-    denominator = 0.0
-    θ_tilde = zeros(3)
-    Σ_θθ_tilde_final = zeros(3,3)
 
+    denominator = 0.0
     for i = 1:r.M
         μ_θ_tilde[:,i] = r.μ[3:5,i] + r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\(x - r.μ[1:2,i]))
 
@@ -187,8 +185,17 @@ function prediction(r::ThreeLink, x::Vector)
     end
 
     for i = 1:r.M
-        β[i] = r.π[i] * pdf(d[i], x) / denominator
+        π_θ_tilde[i] = r.π[i] * pdf(d[i], x) / denominator
     end
+
+    return π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde
+end
+
+function prediction(r::ThreeLink, x::Vector)
+    π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
+
+    θ_tilde = zeros(3)
+    Σ_θθ_tilde_final = zeros(3,3)
 
     # This one is from the paper: Xu, et al. "Data-driven ..." DOI: 10.1002/rcs.1774
     #
@@ -198,13 +205,12 @@ function prediction(r::ThreeLink, x::Vector)
     # end
     # return θ_tilde, Σ_θθ_tilde_final
 
-
     # Single component least-squares estimation
     # From "Ghahramani, Solving Inverse Problems Using an EM Approach To Density Estimation"
-    value, ind = findmax([pdf(d[i], x) for i =1:r.M])
+    # value, ind = findmax([pdf(d[i], x) for i =1:r.M]),                        where d[i] = N(x | μ_{x,i}, Σ_{xx,i}) comes from conditonalize(r, x)
+    _, ind = findmax(π_θ_tilde)   # this is equivalent to the line above.
     return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
-
 
 function predict_elbow_down(r::ThreeLink, x::Vector)
     μ, Σ = prediction(r, x)
@@ -416,7 +422,7 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
 
 
     fig = figure(2)
-    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
+    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
@@ -475,6 +481,58 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     # ax.set_ylabel(L"p(y)", fontsize=16)
 end
 
+
+function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
+    π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
+
+    d = Array{MvNormal, 1}()
+
+    for j = 1:r.M
+        push!(d, MvNormal(μ_θ_tilde[1:2,j], Σ_θθ_tilde[j][1:2,1:2]))
+    end
+
+    fig = figure(5)
+    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
+
+    ax = fig.add_subplot(1,2,1)
+    ax.cla()
+
+    θ1 = range(-3.4; stop=-1.5, length=201)
+    θ2 = range(-2.5; stop=1.33, length=99*2)
+    Z = zeros(length(θ2), length(θ1))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = sum( π_θ_tilde[k]*pdf(d[k], [θ1[j], θ2[i]]) for k = 1:r.M )
+        end
+    end
+    levels = sort( range(maximum(Z); stop=0.05, length=10) )
+    cs = ax.contour(θ1, θ2, Z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    ax.set_aspect("equal")
+
+
+    PyPlot.PyObject(PyPlot.axes3D)      # PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
+    ax = fig.add_subplot(1,2,2, projection="3d")
+    ax.cla()
+
+    X = θ1' .* ones(length(θ2))
+    Y = ones(length(θ1))' .* θ2
+    Z = zeros(size(X))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = sum( π_θ_tilde[k]*pdf(d[k], [θ1[j], θ2[i]]) for k = 1:r.M )
+        end
+    end
+    ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.view_init(elev=34, azim=-74)
+
+    fig.savefig("../TeX/figures/full_posterior_marginal.png", dpi=600, 
+        bbox_inches="tight", format="png")
+end
 
 
 function plot_marginals_sequentially(x::Vector; maxiter::Int=9)
