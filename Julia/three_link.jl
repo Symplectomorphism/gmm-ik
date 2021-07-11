@@ -125,6 +125,7 @@ function execute_em!(r::ThreeLink;
     μ_error = Inf
     Σ_error = Inf
     k = 1
+    counter = 1
     while μ_error > tol_μ || Σ_error > tol_Σ
         μ = zeros(5,r.M)
         Σ = Array{Matrix{Float64}, 1}()
@@ -140,13 +141,16 @@ function execute_em!(r::ThreeLink;
         μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M) / sum(norm(r.μ[:,i]) for i = 1:r.M)
         Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M) / sum(norm(r.Σ[i]) for i = 1:r.M)
         
-        if verbose
+        if verbose && (counter % 10 == 0)
             println("Iteration: $k, |Δμ| = $(round(μ_error, digits=6)), |ΔΣ| = $(round(Σ_error, digits=6))")
+            counter = 0
         end
 
+        counter += 1
         k += 1
         k > maxiter ? break : nothing
     end
+    println("Iteration: $k, |Δμ| = $(round(μ_error, digits=6)), |ΔΣ| = $(round(Σ_error, digits=6))")
 end
 
 function conditionalize(r::ThreeLink, x::Vector)
@@ -414,22 +418,46 @@ function solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3
 end
 
 
-function hypertrain_M(;N=2001)
-    for M = 181:10:201
+function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102)
+    avg_cost = Float64[]
+    for M in M_span
         r = ThreeLink(N=N, M=M)
-        try execute_em!(r; maxiter=100, verbose=true) catch end
-        avg_cost = test_training(r; nPoints=200)
-        println("Average Cost(N=$M) = $(avg_cost)")
+        execute_em!(r; maxiter=100, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
+        push!(avg_cost, test_training(r; nPoints=200))
+        println("Average Cost(N=$M) = $(avg_cost[end])\n ")
     end
+    fig = figure(100)
+    fig.clf()
+    ax = fig.add_subplot(1,1,1)
+    # ax.plot(M_span, avg_cost, linestyle="-", marker="o")
+    ax.bar(M_span, avg_cost, width=diff(M_span)[1]*0.8)
+    ax.set_ylabel(L"Average $\ell_2$ error", fontsize=15)
+    ax.set_xlabel(LaTeXString("M: component size"), fontsize=15)
+    ax.set_title(LaTeXString("Training data size: N = $N"), fontsize=16)
+    ax.set_xticks(M_span)
+
+    return avg_cost, fig
 end
 
-function hypertrain_N(;M=101)
-    for N = 1001:1000:7001
+function hypertrain_N(;M::Int=101, N_span::AbstractArray=1001:1000:5001)
+    avg_cost = Float64[]
+    for N in N_span
         r = ThreeLink(N=N, M=M)
-        try execute_em!(r; maxiter=100, verbose=true) catch end
-        avg_cost = test_training(r; nPoints=200)
-        println("Average Cost(N=$N) = $(avg_cost)\n")
+        execute_em!(r; maxiter=100, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
+        push!(avg_cost, test_training(r; nPoints=200))
+        println("Average Cost(N=$N) = $(avg_cost[end])\n")
     end
+    fig = figure(101)
+    fig.clf()
+    ax = fig.add_subplot(1,1,1)
+    # ax.plot(M_span, avg_cost, linestyle="-", marker="o")
+    ax.bar(N_span, avg_cost)
+    ax.set_ylabel(L"Average \$\ell_2\$ error", fontsize=15)
+    ax.set_xlabel(LaTeXString("N: training data size"), fontsize=15)
+    ax.set_title(LaTeXString("Component size: M = $M"), fontsize=16)
+    ax.set_xticks(N_span)
+
+    return avg_cost, fig
 end
 
 
@@ -669,7 +697,7 @@ function plot_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4]; reco
 end
 
 
-function plot_full_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=false)
+function plot_full_posterior(r::ThreeLink; x::Vector=[-1.5, -0.4], record::Bool=false)
     # Plot full posterior P(θ | x) by marginalizing θ3
     π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
 
@@ -729,7 +757,7 @@ function plot_full_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=
 end
 
 
-function plot_full_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4]; record::Bool=false)
+function plot_full_posterior(r::ThreeLink, θ3::Float64; x::Vector=[-1.5, -0.4], record::Bool=false)
     # Plot the full posterior P(θ | x) by conditioning θ3
     π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
 
