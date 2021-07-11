@@ -435,11 +435,12 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
             z[i,j] = pdf(d, [θ1[j], θ2[i]])
         end
     end
-    levels = sort( range(maximum(z); stop=0.05, length=10) )
-    cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # levels = sort( range(maximum(z); stop=0.05, length=10) )
+    # cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    cs = ax.contourf(θ1, θ2, z, cmap=PyPlot.cm.coolwarm)
     ax.set_xlabel(L"θ_1", fontsize=16)
     ax.set_ylabel(L"θ_2", fontsize=16)
-    ax.clabel(cs, cs.levels, inline=true, fontsize=8)
     ax.set_aspect("equal")
 
 
@@ -505,7 +506,7 @@ function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
             Z[i,j] = sum( π_θ_tilde[k]*pdf(d[k], [θ1[j], θ2[i]]) for k = 1:r.M )
         end
     end
-    levels = sort( range(maximum(Z); stop=0.05, length=10) )
+    # levels = sort( range(maximum(Z); stop=0.05, length=10) )
     # cs = ax.contour(θ1, θ2, Z, levels=levels, cmap=PyPlot.cm.coolwarm)
     # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
     cs = ax.contourf(θ1, θ2, Z, cmap=PyPlot.cm.coolwarm)
