@@ -2,7 +2,7 @@ using Random, Distributions
 using Clustering
 using LinearAlgebra
 using GaussianMixtures
-using PyPlot
+using PyCall, PyPlot
 using JuMP, Ipopt
 using BSON: @save, @load     # enable if you want to load one of the .bson files
 
@@ -365,21 +365,40 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
     fig.clf()
     ax = fig.add_subplot(1,1,1)
 
+    line1 = Array{PyCall.PyObject, 1}()
+    line2 = Array{PyCall.PyObject, 1}()
+    line3 = Array{PyCall.PyObject, 1}()
     for i = 1:nPoints
         p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
         p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
         p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
 
-        ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
-        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.2)
+        l2 = ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
+        l1 = ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.5)
         ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
         ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
         ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
         ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
 
-        plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
+        l3 = plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", 
+                alpha=0.75)
+        
+        push!(line1, l1[1])
+        push!(line2, l2[1])
+        push!(line3, l3[1])
     end
-    plot(x[1], x[2], marker="o", markersize=16)
+    line1[1].set_label("Robot links")
+    line2[1].set_label("Robot joints")
+    line3[1].set_label("GMM solution")
+    plot(x[1], x[2], marker="o", markersize=16, label="End-effector location")
+    
+    ax.set_xlabel(L"x", fontsize=16)
+    ax.set_ylabel(L"y", fontsize=16)
+
+    ax.legend()
+
+    fig.savefig("../TeX/figures/sample_solution.png", dpi=600, 
+        bbox_inches="tight", format="png")
 end
 
 

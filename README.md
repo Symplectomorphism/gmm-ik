@@ -24,7 +24,7 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     plotted by black stars.
   - The green triangles depict the locations of the revolute joints.
   
-![Sample solution](./Julia/Figure_3.png)
+![Sample solution](./TeX/figures/sample_solution.png)
 
 * Example usage:
   - ```julia --project=.```
