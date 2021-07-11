@@ -167,9 +167,9 @@ function execute_em!(r::ThreeLink;
 end
 
 function conditionalize(r::ThreeLink, x::Vector)
-    π_θ_tilde = zeros(r.M)
-    μ_θ_tilde = zeros(3, r.M)
-    Σ_θθ_tilde = Array{Matrix{Float64}, 1}()
+    π_θ_tilde = zeros(r.M)              # π_θ_tilde = β (in the paper Xu, et al.)
+    μ_θ_tilde = zeros(3, r.M)           # this will be the conditional mean of each Gaussian
+    Σ_θθ_tilde = Array{Matrix{Float64}, 1}()    # this will be the conditional covariance of each Gaussian
     d = Array{MvNormal, 1}()
 
     denominator = 0.0
@@ -191,29 +191,54 @@ function conditionalize(r::ThreeLink, x::Vector)
     return π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde
 end
 
-function prediction(r::ThreeLink, x::Vector)
+function predict_most_likely(r::ThreeLink, x::Vector)
     π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
-
-    θ_tilde = zeros(3)
-    Σ_θθ_tilde_final = zeros(3,3)
-
-    # This one is from the paper: Xu, et al. "Data-driven ..." DOI: 10.1002/rcs.1774
-    #
-    # for i = 1:r.M
-    #     θ_tilde += β[i] * μ_θ_tilde[:,i]
-    #     Σ_θθ_tilde_final += β[i]*β[i]*Σ_θθ_tilde[i]
-    # end
-    # return θ_tilde, Σ_θθ_tilde_final
 
     # Single component least-squares estimation
     # From "Ghahramani, Solving Inverse Problems Using an EM Approach To Density Estimation"
     # value, ind = findmax([pdf(d[i], x) for i =1:r.M]),                        where d[i] = N(x | μ_{x,i}, Σ_{xx,i}) comes from conditonalize(r, x)
-    _, ind = findmax(π_θ_tilde)   # this is equivalent to the line above.
+    value, ind = findmax(π_θ_tilde)   # this is equivalent to the line above.
     return μ_θ_tilde[:,ind], Σ_θθ_tilde[ind]
 end
 
+function predict_full_posterior(r::ThreeLink, x::Vector)
+    π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
+
+    # This one is from the paper: Xu, et al. "Data-driven ..." DOI: 10.1002/rcs.1774
+    μ_θ_tilde_final = zeros(3)                  
+    Σ_θθ_tilde_final = zeros(3,3)
+    for i = 1:r.M
+        μ_θ_tilde_final += π_θ_tilde[i] * μ_θ_tilde[:,i]    
+        Σ_θθ_tilde_final += π_θ_tilde[i]*π_θ_tilde[i]*Σ_θθ_tilde[i]
+    end
+    return μ_θ_tilde_final, 1/2 * (Σ_θθ_tilde_final + Σ_θθ_tilde_final')
+end
+
+function predict(r::ThreeLink, x::Vector; mode::Symbol=:slse)
+    θ_hat = zeros(3)
+    Σ_hat = zeros(3,3)
+    if mode == :slse             # Do maximum-likelihood estimation over the most likely Gaussian that generated x: (SLSE)
+        μ_θ_tilde, Σ_θθ_tilde = predict_most_likely(r,x)
+        θ_hat = μ_θ_tilde
+        Σ_hat = Σ_θθ_tilde
+    else
+        μ_θ_tilde_final, Σ_θθ_tilde_final = predict_full_posterior(r, x)
+        Σ_hat = Σ_θθ_tilde_final
+        if mode == :lse              # Do maximum-likelihood over the full posterior (mixture of Gaussians): (LSE)
+            θ_hat = μ_θ_tilde_final
+        elseif mode == :stoch        # Stochastically sample from the full posterior (mixture of Gaussians): (STOCH)
+            d = MvNormal(μ_θ_tilde_final, Σ_θθ_tilde_final)
+            θ_hat = rand(d)
+        else
+            error("Unknown method for prediction.")
+        end
+    end
+
+    return θ_hat, Σ_hat
+end
+
 function predict_elbow_down(r::ThreeLink, x::Vector)
-    μ, Σ = prediction(r, x)
+    μ, Σ = predict(r, x)
     d = MvNormal(μ, Σ)
     θ = rand(d)
     while θ[2] <= 0
@@ -222,8 +247,8 @@ function predict_elbow_down(r::ThreeLink, x::Vector)
     return θ
 end
 
-function rand_prediction(r::ThreeLink, x::Vector)
-    μ, Σ = prediction(r, x)
+function rand_predict(r::ThreeLink, x::Vector)
+    μ, Σ = predict(r, x)
     d = MvNormal(μ, Σ)
     return rand(d)
 end
@@ -253,14 +278,14 @@ function use_gmm!(r::ThreeLink; nIter::Int=100)
 end
 
 
-function test_training(r::ThreeLink; nPoints::Int=200)
+function test_training(r::ThreeLink; nPoints::Int=200, mode::Symbol=:slse)
     xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
     ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
     dx = Uniform(xmin, xmax)
     dy = Uniform(ymin, ymax)
 
     test_x = convert(Matrix, hcat(rand(dx, nPoints), rand(dy, nPoints))')
-    pred_θ = hcat([prediction(r, test_x[:,i])[1] for i = 1:nPoints]...)
+    pred_θ = hcat([predict(r, test_x[:,i]; mode)[1] for i = 1:nPoints]...)
     cost = [norm(fk(pred_θ[:,i]) - test_x[:,i]) for i = 1:nPoints]
 
     return mean(cost)
@@ -334,7 +359,7 @@ function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     x = [rand(dx), rand(dy)]
 
 
-    μ, Σ = prediction(r, x)
+    μ, Σ = predict(r, x)
     d = MvNormal(μ, Σ)
     θ_dist = rand(d, nPoints)
     x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
@@ -362,7 +387,7 @@ end
 
 
 function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=100)
-    μ, Σ = prediction(r, x)
+    μ, Σ = predict(r, x)
     d = MvNormal(μ, Σ)
     θ_dist = rand(d, nPoints)
     x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
@@ -409,7 +434,7 @@ end
 
 
 function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
-    μ, Σ = prediction(r, x)
+    μ, Σ = predict(r, x)
 
     μ12 = μ[1:2]
     Σ12 = Σ[1:2,1:2]
@@ -515,7 +540,7 @@ function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     ax.set_aspect("equal")
 
 
-    PyPlot.PyObject(PyPlot.axes3D)      # PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
+    PyPlot.PyObject(PyPlot.axes3D)      #equivalently: PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
     ax = fig.add_subplot(1,2,2, projection="3d")
     ax.cla()
 
@@ -551,7 +576,7 @@ function plot_marginals_sequentially(x::Vector; maxiter::Int=9)
     Z = zeros(size(X))
 
     for n = 1:maxiter+1
-        μ, Σ = prediction(r, x)
+        μ, Σ = predict(r, x)
         μ12 = μ[1:2]
         Σ12 = Σ[1:2,1:2]
         d = MvNormal(μ12, Σ12)
