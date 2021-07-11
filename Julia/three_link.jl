@@ -225,13 +225,13 @@ function predict_cond(r::ThreeLink, x::Vector, θ3::Float64; mode::Symbol=:slse)
     d = MvNormal(μ, Σ)
     θ = rand(d)
     counter = 1
-    while θ[3] >= θ3 + 0.1 || θ[3] <= θ3 - 0.1
+    while θ[3] >= θ3 + 0.01 || θ[3] <= θ3 - 0.01
         θ = rand(d)
-        counter += 1
         if counter > 1000 
             @warn "Satisfactory approximate solution not found." 
             break
         end
+        counter += 1
     end
     return θ
 end
@@ -240,8 +240,62 @@ function predict_elbow_down(r::ThreeLink, x::Vector; mode::Symbol=:slse)
     μ, Σ = predict(r, x; mode=mode)
     d = MvNormal(μ, Σ)
     θ = rand(d)
+    counter = 1
     while θ[2] <= 0
         θ = rand(d)
+        if counter > 1000 
+            @warn "Satisfactory approximate solution not found." 
+            break
+        end
+        counter += 1
+    end
+    return θ
+end
+
+function predict_elbow_up(r::ThreeLink, x::Vector; mode::Symbol=:slse)
+    μ, Σ = predict(r, x; mode=mode)
+    d = MvNormal(μ, Σ)
+    θ = rand(d)
+    counter = 1
+    while θ[2] >= 0
+        θ = rand(d)
+        if counter > 1000 
+            @warn "Satisfactory approximate solution not found." 
+            break
+        end
+        counter += 1
+    end
+    return θ
+end
+
+function predict_elbow_down_cond(r::ThreeLink, x::Vector, θ3::Float64; mode::Symbol=:slse)
+    μ, Σ = predict(r, x; mode=mode)
+    d = MvNormal(μ, Σ)
+    θ = rand(d)
+    counter = 1
+    while θ[2] <= 0 || θ[3] >= θ3 + 0.01 || θ[3] <= θ3 - 0.01
+        θ = rand(d)
+        if counter > 1000 
+            @warn "Satisfactory approximate solution not found." 
+            break
+        end
+        counter += 1
+    end
+    return θ
+end
+
+function predict_elbow_up_cond(r::ThreeLink, x::Vector, θ3::Float64; mode::Symbol=:slse)
+    μ, Σ = predict(r, x; mode=mode)
+    d = MvNormal(μ, Σ)
+    θ = rand(d)
+    counter = 1
+    while θ[2] >= 0 || θ[3] >= θ3 + 0.01 || θ[3] <= θ3 - 0.01
+        θ = rand(d)
+        if counter > 1000 
+            @warn "Satisfactory approximate solution not found." 
+            break
+        end
+        counter += 1
     end
     return θ
 end
@@ -291,32 +345,7 @@ function test_training(r::ThreeLink; nPoints::Int=200, mode::Symbol=:slse)
 end
 
 
-function solve_optimization(x::Vector)
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_optimization(x::Vector, θ3::Float64)
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[3] == θ3)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_optimization(x::Vector; start::Vector)
+function solve_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
     model = Model(Ipopt.Optimizer)
     @variable(model, θ[1:3])
     @constraint(model, -π .<= θ .<= π)
@@ -329,7 +358,20 @@ function solve_optimization(x::Vector; start::Vector)
     return value.(θ)
 end
 
-function solve_optimization(x::Vector, θ3::Float64; start::Vector)
+function solve_optimization(x::Vector, θ3::Float64; start::Vector=vcat(rand(-π:0.1:π, 2), θ3))
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[3] == θ3)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
     model = Model(Ipopt.Optimizer)
     @variable(model, θ[1:3])
     @constraint(model, -π .<= θ .<= π)
@@ -343,11 +385,25 @@ function solve_optimization(x::Vector, θ3::Float64; start::Vector)
     return value.(θ)
 end
 
-function solve_elbow_down_optimization(x::Vector; start::Vector)
+function solve_elbow_down_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
     model = Model(Ipopt.Optimizer)
     @variable(model, θ[1:3])
     @constraint(model, -π .<= θ .<= π)
     @constraint(model, θ[2] >= 0)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[2] <= 0)
     @NLobjective(model, Min, 
         (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
@@ -383,48 +439,18 @@ function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     dx = Uniform(xmin, xmax)
     dy = Uniform(ymin, ymax)
     x = [rand(dx), rand(dy)]
+    @info "x = $(round.(x; digits=3))"
 
-
-    μ, Σ = predict(r, x)
+    μ, Σ = predict(r, x; mode=:slse)
     d = MvNormal(μ, Σ)
     θ_dist = rand(d, nPoints)
+    # θ_dist = hcat([predict_cond(r, x, 0.0; mode=:slse) for i = 1:nPoints]...)
     x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
     
     fig = figure(1);
     fig.clf()
-    ax = fig.add_subplot(1,1,1)
-
-    line1 = Array{PyCall.PyObject, 1}()
-    line2 = Array{PyCall.PyObject, 1}()
-    line3 = Array{PyCall.PyObject, 1}()
-    for i = 1:nPoints
-        p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
-        p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
-        p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
-
-        l2 = ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
-        l1 = ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.5)
-        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
-        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
-        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
-        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
-
-        l3 = plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", 
-                alpha=0.75)
-        
-        push!(line1, l1[1])
-        push!(line2, l2[1])
-        push!(line3, l3[1])
-    end
-    line1[1].set_label("Robot links")
-    line2[1].set_label("Robot joints")
-    line3[1].set_label("GMM solution")
-    plot(x[1], x[2], marker="o", markersize=16, label="End-effector location")
-    
-    ax.set_xlabel(L"x", fontsize=16)
-    ax.set_ylabel(L"y", fontsize=16)
-
-    ax.legend()
+    plot_manipulator!(fig, x, θ_dist, x_dist)
+    return nothing
 end
 
 
@@ -432,10 +458,59 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
     μ, Σ = predict(r, x; mode=:slse)
     d = MvNormal(μ, Σ)
     θ_dist = rand(d, nPoints)
+    # θ_dist = hcat([predict_cond(r, x, 0.0; mode=:slse) for i = 1:nPoints]...)
     x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
     
     fig = figure(1);
     fig.clf()
+    plot_manipulator!(fig, x, θ_dist, x_dist)
+
+    if record
+        fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
+    return nothing
+end
+
+function plot_manipulator!(fig::Figure, θ_dist::Matrix{Float64}, x_dist::Matrix{Float64})
+    
+    nPoints = size(θ_dist)[2]
+    ax = fig.add_subplot(1,1,1)
+
+    line1 = Array{PyCall.PyObject, 1}()
+    line2 = Array{PyCall.PyObject, 1}()
+    line3 = Array{PyCall.PyObject, 1}()
+    for i = 1:nPoints
+        p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
+        p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
+        p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
+
+        l2 = ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
+        l1 = ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.5)
+        ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
+        ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
+        ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
+
+        l3 = plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", 
+                alpha=0.75)
+        
+        push!(line1, l1[1])
+        push!(line2, l2[1])
+        push!(line3, l3[1])
+    end
+    line1[1].set_label("Robot links")
+    line2[1].set_label("Robot joints")
+    line3[1].set_label("GMM solution")
+    
+    ax.set_xlabel(L"x", fontsize=16)
+    ax.set_ylabel(L"y", fontsize=16)
+    ax.legend()
+end
+
+function plot_manipulator!(fig::Figure, x::Vector, θ_dist::Matrix{Float64}, x_dist::Matrix{Float64})
+
+    nPoints = size(θ_dist)[2]
     ax = fig.add_subplot(1,1,1)
 
     line1 = Array{PyCall.PyObject, 1}()
@@ -467,13 +542,7 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
     
     ax.set_xlabel(L"x", fontsize=16)
     ax.set_ylabel(L"y", fontsize=16)
-
     ax.legend()
-
-    if record
-        fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
-            bbox_inches="tight", format="png")
-    end
 end
 
 
@@ -488,7 +557,7 @@ function plot_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=false
 
     fig = figure(2)
     fig.clf()
-    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
+    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = {%$(round.(x; digits=2))})$ (marginalized over $\theta_3$)", fontsize=16)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
@@ -550,7 +619,7 @@ function plot_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4]; reco
 
     fig = figure(2)
     fig.clf()
-    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
+    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = {%$(round.(x; digits=2))})$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
@@ -612,7 +681,7 @@ function plot_full_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=
 
     fig = figure(5)
     fig.clf()
-    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
+    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = {%$(round.(x; digits=2))})$ (marginalized over $\theta_3$)", fontsize=16)
 
     ax = fig.add_subplot(1,2,1)
     ax.cla()
@@ -676,7 +745,7 @@ function plot_full_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4];
 
     fig = figure(5)
     fig.clf()
-    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
+    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = {%$(round.(x; digits=2))})$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
 
     ax = fig.add_subplot(1,2,1)
     ax.cla()
