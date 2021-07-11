@@ -39,13 +39,13 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
 
 * The figure below shows the posterior of the conditional Gaussian distribution
   given x = [-1.5, -0.4], that most likely generates x, over θ1 and θ2
-  (marginalized over θ3 for visualization purposes)
+  (marginalized over θ3 for visualization purposes).
 
 ![Marginal distribution](./TeX/figures/marginal.png)
 
 
 * The final figure shows the full posterior of the mixture of conditional
   Gaussian distributions given x = [-1.5, -0.4] over θ1 and θ2 (marginalized
-  over θ3 for visualization purposes)
+  over θ3 for visualization purposes).
 
 ![Full marginal distribution](./TeX/figures/full_posterior_marginal.png)
