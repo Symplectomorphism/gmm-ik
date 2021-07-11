@@ -12,7 +12,8 @@ top right of the page).
   - ```r = ThreeLink(N=1001, M=61);``` -- Constructs the mechanism and the GMM
     structure.
   - ```execute_em!(r; maxiter=100)``` -- It takes around 20 iterations to
-    converge to the specified (hard-coded) tolerance values.
+    converge to the specified (hard-coded) tolerance values. The tolerances may
+    also be specified using the optional arguments of this function.
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
 
