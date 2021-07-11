@@ -97,42 +97,25 @@ function forward_kinematics!(r::ThreeLink, N::Int)
     end
 end
 
-
 function _E_step(r::ThreeLink)
+    d = [MvNormal(r.μ[:,j], r.Σ[j]) for j = 1:r.M]
     for i = 1:r.N
         for j = 1:r.M
-            numerator = 1/sqrt(det(r.Σ[j])) * 
-                exp(-1/2 * dot((r.ξ[:,i] - r.μ[:,j]), r.Σ[j]\(r.ξ[:,i] - r.μ[:,j])) )
-            denominator = 0.0
-            for l = 1:r.M
-                denominator += 1/sqrt(det(r.Σ[l])) * 
-                    exp(-1/2 * dot((r.ξ[:,i] - r.μ[:,l]), r.Σ[l]\(r.ξ[:,i] - r.μ[:,l])) )
-            end
-            r.h[i,j] = numerator / denominator
+            num = pdf(d[j], r.ξ[:,i])
+            den = (num + sum( pdf(d[l], r.ξ[:,i]) for l = Base.Iterators.filter(λ -> λ!=j, 1:r.M) ))
+            r.h[i,j] = num / den
         end
     end
 end
 
 function _M_step(r::ThreeLink)
     for j = 1:r.M
-        numerator_μ = zeros(5)
-        numerator_Σ = zeros(5, 5)
-
-        normalizer = 0.0
-
-        for i = 1:r.N
-            numerator_μ += r.h[i,j] * r.ξ[:,i]
-            normalizer += r.h[i,j]
-        end
-        r.μ[:,j] = numerator_μ / normalizer
-        
-        for i = 1:r.N
-            numerator_Σ += r.h[i,j] * (r.ξ[:,i] - r.μ[:,j]) * (r.ξ[:,i] - r.μ[:,j])'
-        end
-
-        r.π[j] = normalizer / r.N
-        r.Σ[j] = numerator_Σ / normalizer
-        r.Σ[j] = 1/2 * (r.Σ[j] + r.Σ[j]')           # Make sure it is Hermitian.
+        sum_h_over_data = sum(r.h[:,j])
+        r.π[j] = sum_h_over_data / r.N
+        r.μ[:,j] = sum(transpose(r.h[:,j] .* r.ξ'); dims=2) / sum_h_over_data
+        r.Σ[j] = Hermitian(
+            sum( r.h[i,j] * (r.ξ[:,i] - r.μ[:,j]) * (r.ξ[:,i] - r.μ[:,j])' for i = 1:r.N ) / sum_h_over_data
+        )   # Make sure it is Hermitian.
     end
 end
 
@@ -142,7 +125,7 @@ function execute_em!(r::ThreeLink;
     μ_error = Inf
     Σ_error = Inf
     k = 1
-    while μ_error > tol_μ|| Σ_error > tol_Σ
+    while μ_error > tol_μ || Σ_error > tol_Σ
         μ = zeros(5,r.M)
         Σ = Array{Matrix{Float64}, 1}()
         for i = 1:r.M
