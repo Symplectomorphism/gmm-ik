@@ -397,7 +397,7 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
 
     ax.legend()
 
-    fig.savefig("../TeX/figures/sample_solution.png", dpi=300, 
+    fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
         bbox_inches="tight", format="png")
 end
 
