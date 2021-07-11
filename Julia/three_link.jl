@@ -506,10 +506,11 @@ function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
         end
     end
     levels = sort( range(maximum(Z); stop=0.05, length=10) )
-    cs = ax.contour(θ1, θ2, Z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # cs = ax.contour(θ1, θ2, Z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    cs = ax.contourf(θ1, θ2, Z, cmap=PyPlot.cm.coolwarm)
     ax.set_xlabel(L"θ_1", fontsize=16)
     ax.set_ylabel(L"θ_2", fontsize=16)
-    ax.clabel(cs, cs.levels, inline=true, fontsize=8)
     ax.set_aspect("equal")
 
 
