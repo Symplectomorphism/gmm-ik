@@ -108,14 +108,14 @@ function _E_step(r::ThreeLink)
     end
 end
 
-function _M_step(r::ThreeLink)
+function _M_step(r::ThreeLink; ε::Float64=1e-6)
     for j = 1:r.M
         sum_h_over_data = sum(r.h[:,j])
         r.π[j] = sum_h_over_data / r.N
         r.μ[:,j] = sum(transpose(r.h[:,j] .* r.ξ'); dims=2) / sum_h_over_data
         r.Σ[j] = Hermitian(
             sum( r.h[i,j] * (r.ξ[:,i] - r.μ[:,j]) * (r.ξ[:,i] - r.μ[:,j])' for i = 1:r.N ) / sum_h_over_data
-        )   # Make sure it is Hermitian.
+        ) + ε*I   # Make sure it is Hermitian and positive definite
     end
 end
 
@@ -135,7 +135,7 @@ function execute_em!(r::ThreeLink;
 
         # EM step
         _E_step(r)
-        _M_step(r)
+        _M_step(r; ε=min(1e-6, tol_Σ))
 
         μ_error = sum(norm(μ[:,i] - r.μ[:,i]) for i = 1:r.M) / sum(norm(r.μ[:,i]) for i = 1:r.M)
         Σ_error = sum(norm(Σ[i] - r.Σ[i]) for i = 1:r.M) / sum(norm(r.Σ[i]) for i = 1:r.M)
@@ -160,10 +160,10 @@ function conditionalize(r::ThreeLink, x::Vector)
         μ_θ_tilde[:,i] = r.μ[3:5,i] + r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\(x - r.μ[1:2,i]))
 
         Σ_temp = r.Σ[i][3:5,3:5] - r.Σ[i][3:5,1:2]*(r.Σ[i][1:2,1:2]\r.Σ[i][1:2,3:5])
-        push!(Σ_θθ_tilde, 1/2*(Σ_temp + Σ_temp'))
+        push!(Σ_θθ_tilde, Hermitian(Σ_temp))
 
         Σ = r.Σ[i][1:2,1:2]
-        push!(d, MvNormal(r.μ[1:2,i], 1/2*(Σ + Σ')))
+        push!(d, MvNormal(r.μ[1:2,i], Matrix(Hermitian(Σ))))
         denominator += r.π[i] * pdf(d[i], x)
     end
 
@@ -194,7 +194,7 @@ function predict_full_posterior(r::ThreeLink, x::Vector)
         μ_θ_tilde_final += π_θ_tilde[i] * μ_θ_tilde[:,i]    
         Σ_θθ_tilde_final += π_θ_tilde[i]*π_θ_tilde[i]*Σ_θθ_tilde[i]
     end
-    return μ_θ_tilde_final, 1/2 * (Σ_θθ_tilde_final + Σ_θθ_tilde_final')
+    return μ_θ_tilde_final, Matrix(Hermitian(Σ_θθ_tilde_final))
 end
 
 function predict(r::ThreeLink, x::Vector; mode::Symbol=:slse)
@@ -220,8 +220,24 @@ function predict(r::ThreeLink, x::Vector; mode::Symbol=:slse)
     return θ_hat, Σ_hat
 end
 
-function predict_elbow_down(r::ThreeLink, x::Vector)
-    μ, Σ = predict(r, x)
+function predict_cond(r::ThreeLink, x::Vector, θ3::Float64; mode::Symbol=:slse)
+    μ, Σ = predict(r, x; mode=mode)
+    d = MvNormal(μ, Σ)
+    θ = rand(d)
+    counter = 1
+    while θ[3] >= θ3 + 0.1 || θ[3] <= θ3 - 0.1
+        θ = rand(d)
+        counter += 1
+        if counter > 1000 
+            @warn "Satisfactory approximate solution not found." 
+            break
+        end
+    end
+    return θ
+end
+
+function predict_elbow_down(r::ThreeLink, x::Vector; mode::Symbol=:slse)
+    μ, Σ = predict(r, x; mode=mode)
     d = MvNormal(μ, Σ)
     θ = rand(d)
     while θ[2] <= 0
@@ -247,7 +263,7 @@ function use_gmm!(r::ThreeLink; nIter::Int=100)
     push!(his, History(0.0, "aha"))
 
     for i = 1:r.M
-        # push!(chol, cholesky(1/2*(r.Σ[i]+r.Σ[i]')).U)
+        # push!(chol, cholesky(Matrix(Hermitian(r.Σ[i]))).U)
         push!(chol, cholesky(r.Σ[i]).U)
     end
 
@@ -287,10 +303,37 @@ function solve_optimization(x::Vector)
     return value.(θ)
 end
 
+function solve_optimization(x::Vector, θ3::Float64)
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[3] == θ3)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    optimize!(model)
+    return value.(θ)
+end
+
 function solve_optimization(x::Vector; start::Vector)
     model = Model(Ipopt.Optimizer)
     @variable(model, θ[1:3])
     @constraint(model, -π .<= θ .<= π)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_optimization(x::Vector, θ3::Float64; start::Vector)
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[3] == θ3)
     @NLobjective(model, Min, 
         (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
@@ -351,26 +394,42 @@ function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     fig.clf()
     ax = fig.add_subplot(1,1,1)
 
+    line1 = Array{PyCall.PyObject, 1}()
+    line2 = Array{PyCall.PyObject, 1}()
+    line3 = Array{PyCall.PyObject, 1}()
     for i = 1:nPoints
         p1 = [cos(θ_dist[1,i]), sin(θ_dist[1,i])]
         p2 = p1 + [cos(θ_dist[1,i]+θ_dist[2,i]), sin(θ_dist[1,i]+θ_dist[2,i])]
         p3 = p2 + 1/2*[cos(sum(θ_dist[:,i])), sin(sum(θ_dist[:,i]))]
 
-        ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
-        ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.2)
+        l2 = ax.plot(0, 0, marker="^", markersize=7, color="green", alpha=0.7)
+        l1 = ax.plot([0,p1[1]], [0, p1[2]], linewidth=2, color="orange", alpha=0.5)
         ax.plot(p1[1], p1[2], marker="^", markersize=7, color="green", alpha=0.2)
         ax.plot([p1[1], p2[1]], [p1[2],p2[2]], linewidth=2, color="orange", alpha=0.2)
         ax.plot(p2[1], p2[2], marker="^", markersize=7, color="green", alpha=0.2)
         ax.plot([p2[1], p3[1]], [p2[2],p3[2]], linewidth=2, color="orange", alpha=0.2)
 
-        ax.plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", alpha=0.75)
+        l3 = plot(x_dist[1,i], x_dist[2,i], marker="*", markersize=10, color="black", 
+                alpha=0.75)
+        
+        push!(line1, l1[1])
+        push!(line2, l2[1])
+        push!(line3, l3[1])
     end
-    plot(x[1], x[2], marker="o", markersize=16)
+    line1[1].set_label("Robot links")
+    line2[1].set_label("Robot joints")
+    line3[1].set_label("GMM solution")
+    plot(x[1], x[2], marker="o", markersize=16, label="End-effector location")
+    
+    ax.set_xlabel(L"x", fontsize=16)
+    ax.set_ylabel(L"y", fontsize=16)
+
+    ax.legend()
 end
 
 
-function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=100)
-    μ, Σ = predict(r, x)
+function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=100, record::Bool=false)
+    μ, Σ = predict(r, x; mode=:slse)
     d = MvNormal(μ, Σ)
     θ_dist = rand(d, nPoints)
     x_dist = hcat([fk(θ_dist[:,i]) for i = 1:nPoints]...)
@@ -411,32 +470,35 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
 
     ax.legend()
 
-    fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
-        bbox_inches="tight", format="png")
+    if record
+        fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
 end
 
 
-function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
+function plot_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=false)
+    # Plot most likely posterior N*(θ | x) by marginalizing θ3
     μ, Σ = predict(r, x)
 
     μ12 = μ[1:2]
     Σ12 = Σ[1:2,1:2]
     d = MvNormal(μ12, Σ12)
 
-    # μ_marginalized_θ3 = μ[1:2]
-    # temp = Σ[1:2,1:2] - Σ[3,1:2]*1/Σ[3,3]*Σ[1:2,3]'
-    # Σ_marginalized_θ3 = 1/2 * (temp + temp')
-    # d = MvNormal(μ_marginalized_θ3, Σ_marginalized_θ3)
-
 
     fig = figure(2)
+    fig.clf()
     fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
     
     ax = fig.add_subplot(1,2,1)
     ax.cla()
 
-    θ1 = range(-3.4; stop=-2.15, length=201)
-    θ2 = range(-1.13; stop=1.33, length=99*2)
+    res = svd(Σ12)
+    μ_view_min = μ12 - 5*res.S[1] * res.U[:,1]
+    μ_view_max = μ12 + 5*res.S[1] * res.U[:,1]
+
+    θ1 = range(μ_view_min[1]; stop=μ_view_max[1], length=201)
+    θ2 = range(μ_view_min[2]; stop=μ_view_max[2], length=99*2)
     z = zeros(length(θ2), length(θ1))
     for i = 1:length(θ2)
         for j = 1:length(θ1)
@@ -469,29 +531,77 @@ function plot_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     ax.set_ylabel(L"θ_2", fontsize=16)
     ax.view_init(elev=38, azim=-15)
 
-    fig.savefig("../TeX/figures/marginal.png", dpi=600, 
-        bbox_inches="tight", format="png")
+    if record
+        fig.savefig("../TeX/figures/posterior_marginal_theta3.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
+end
+
+function plot_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4]; record::Bool=false)
+    # Plot most likely posterior N*(θ | x) by conditioning θ3
+    μ, Σ = predict(r, x)
 
 
-    # s = svd(Σ12)
-    # B = s.U[:,1]'
-    # μ_reduced = B * μ12
-    # Σ_reduced = B * Σ12 * B'
-    # d_reduced = Normal(μ_reduced, Σ_reduced)
+    μ_cond_θ3 = μ[1:2] + Σ[1:2,3] * 1/Σ[3,3] * (θ3 - μ[3])
+    temp = Σ[1:2,1:2] - Σ[3,1:2]*1/Σ[3,3]*Σ[1:2,3]'
+    Σ_cond_θ3 = Matrix(Hermitian(temp))
+    d = MvNormal(μ_cond_θ3, Σ_cond_θ3)
 
-    # θ1 = range(-90*π/180; stop=0*π/180, length=101)
-    # θ2 = range(0*π/180; stop=120*π/180, length=101)
-    # y = B[1]*θ1 + B[2]*θ2
 
-    # ax = fig.add_subplot(1,2,2)
-    # ax.cla()
-    # ax.plot(y, pdf(d_reduced, y), linewidth=2)
-    # ax.set_xlabel("y = $(round(B[1], digits=2)) θ1 + $(round(B[2], digits=2)) θ2", fontsize=16)
-    # ax.set_ylabel(L"p(y)", fontsize=16)
+    fig = figure(2)
+    fig.clf()
+    fig.suptitle(L"$\mathcal{N}(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
+    
+    ax = fig.add_subplot(1,2,1)
+    ax.cla()
+
+    res = svd(Σ_cond_θ3)
+    μ_view_min = μ_cond_θ3 - 5*res.S[1] * res.U[:,1]
+    μ_view_max = μ_cond_θ3 + 5*res.S[1] * res.U[:,1]
+
+    θ1 = range(μ_view_min[1]; stop=μ_view_max[1], length=201)
+    θ2 = range(μ_view_min[2]; stop=μ_view_max[2], length=99*2)
+    z = zeros(length(θ2), length(θ1))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            z[i,j] = pdf(d, [θ1[j], θ2[i]])
+        end
+    end
+    # levels = sort( range(maximum(z); stop=0.05, length=10) )
+    # cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    cs = ax.contourf(θ1, θ2, z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.set_aspect("equal")
+
+
+    PyPlot.PyObject(PyPlot.axes3D)      # PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
+    ax = fig.add_subplot(1,2,2, projection="3d")
+    ax.cla()
+
+    X = θ1' .* ones(length(θ2))
+    Y = ones(length(θ1))' .* θ2
+    Z = zeros(size(X))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = pdf(d, [X[i,j], Y[i,j]])
+        end
+    end
+    ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.view_init(elev=38, azim=-15)
+
+    if record
+        fig.savefig("../TeX/figures/posterior_cond_theta3.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
 end
 
 
-function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
+function plot_full_posterior(r::ThreeLink, x::Vector=[-1.5, -0.4]; record::Bool=false)
+    # Plot full posterior P(θ | x) by marginalizing θ3
     π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
 
     d = Array{MvNormal, 1}()
@@ -501,13 +611,16 @@ function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     end
 
     fig = figure(5)
+    fig.clf()
     fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (marginalized over $\theta_3$)", fontsize=16)
 
     ax = fig.add_subplot(1,2,1)
     ax.cla()
 
-    θ1 = range(-3.4; stop=-1.5, length=201)
-    θ2 = range(-2.5; stop=1.33, length=99*2)
+    # θ1 = range(-3.4; stop=-1.5, length=201)
+    # θ2 = range(-2.5; stop=1.33, length=99*2)
+    θ1 = range(-π; stop=π, length=201)
+    θ2 = range(-π; stop=π, length=99*2)
     Z = zeros(length(θ2), length(θ1))
     for i = 1:length(θ2)
         for j = 1:length(θ1)
@@ -540,8 +653,72 @@ function plot_full_posterior_marginal(r::ThreeLink, x::Vector=[-1.5, -0.4])
     ax.set_ylabel(L"θ_2", fontsize=16)
     ax.view_init(elev=34, azim=-74)
 
-    fig.savefig("../TeX/figures/full_posterior_marginal.png", dpi=600, 
-        bbox_inches="tight", format="png")
+    if record
+        fig.savefig("../TeX/figures/full_posterior_marginal.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
+end
+
+
+function plot_full_posterior(r::ThreeLink, θ3::Float64, x::Vector=[-1.5, -0.4]; record::Bool=false)
+    # Plot the full posterior P(θ | x) by conditioning θ3
+    π_θ_tilde, μ_θ_tilde, Σ_θθ_tilde = conditionalize(r, x)
+
+    d = Array{MvNormal, 1}()
+
+    for j = 1:r.M
+        μ_cond_θ3 = μ_θ_tilde[1:2,j] + Σ_θθ_tilde[j][1:2,3] * 1/Σ_θθ_tilde[j][3,3] * (θ3 - μ_θ_tilde[3,j])
+        temp = Σ_θθ_tilde[j][1:2,1:2] - Σ_θθ_tilde[j][3,1:2]*1/Σ_θθ_tilde[j][3,3]*Σ_θθ_tilde[j][1:2,3]'
+        Σ_cond_θ3 = Matrix(Hermitian(temp))
+
+        push!(d, MvNormal(μ_cond_θ3, Σ_cond_θ3))
+    end
+
+    fig = figure(5)
+    fig.clf()
+    fig.suptitle(L"$P(\theta_1, \theta_2 \mid x = [-1.5, -0.4])$ (conditioned at $\theta_3 = {%$(round(θ3; digits=2))}$)", fontsize=16)
+
+    ax = fig.add_subplot(1,2,1)
+    ax.cla()
+
+    θ1 = range(-π; stop=π, length=201)
+    θ2 = range(-π; stop=π, length=99*2)
+    Z = zeros(length(θ2), length(θ1))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = sum( π_θ_tilde[k]*pdf(d[k], [θ1[j], θ2[i]]) for k = 1:r.M )
+        end
+    end
+    # levels = sort( range(maximum(Z); stop=0.05, length=10) )
+    # cs = ax.contour(θ1, θ2, Z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    cs = ax.contourf(θ1, θ2, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.set_aspect("equal")
+
+
+    PyPlot.PyObject(PyPlot.axes3D)      #equivalently: PyPlot.pyimport("mpl_toolkits.mplot3d.axes3d")
+    ax = fig.add_subplot(1,2,2, projection="3d")
+    ax.cla()
+
+    X = θ1' .* ones(length(θ2))
+    Y = ones(length(θ1))' .* θ2
+    Z = zeros(size(X))
+    for i = 1:length(θ2)
+        for j = 1:length(θ1)
+            Z[i,j] = sum( π_θ_tilde[k]*pdf(d[k], [θ1[j], θ2[i]]) for k = 1:r.M )
+        end
+    end
+    ax.plot_surface(X, Y, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(L"θ_1", fontsize=16)
+    ax.set_ylabel(L"θ_2", fontsize=16)
+    ax.view_init(elev=34, azim=-74)
+
+    if record
+        fig.savefig("../TeX/figures/full_posterior_marginal.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
 end
 
 
