@@ -62,14 +62,14 @@ top right of the page).
 
 ### Results: Hyperparameter training
 
-* Testing performance results are seen in the next figure as the number of data
-  points are kept constant at N=1001 and the number of mixture components M is
-  varied.
-
-![Hyperparameter training](./TeX/figures/comp_size_vs_avg_error.png)
-
 * Testing performance results are seen in the next figure as the number of
   mixture components are kept constant at M=61 and the number of data points, N,
   is varied.
 
 ![Hyperparameter training](./TeX/figures/hyperparam_N.png)
+
+* Testing performance results are seen in the next figure as the number of data
+  points are kept constant at N=1001 and the number of mixture components M is
+  varied.
+
+![Hyperparameter training](./TeX/figures/comp_size_vs_avg_error.png)
