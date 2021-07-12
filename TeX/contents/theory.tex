@@ -166,7 +166,9 @@ estimate $\hat{\theta}$ of $\theta = f(x)$.
 
 \begin{enumerate}
     \item Stochastic Sampling (STOCH) samples according to the distribution
-    $\hat{\theta}(\mathrm{x}) \sim P(\theta \mid \mathrm{x})$:
+    $\hat{\theta}(\mathrm{x}) \sim P(\theta \mid \mathrm{x})$. In particular, we
+    can take the maximum-likelihood estimate from $P(\theta \mid \mathrm{x})$,
+    by computing:
     %
     \begin{equation*}
         \hat{\theta} = \sum_{j=1}^M \beta_j \tilde{\mu}_{\theta,j}, \qquad
@@ -206,14 +208,14 @@ were as follows:
 \begin{wrapfigure}{r}{0.5\textwidth}
     \vspace{-20mm}
 	\centering
-	\includegraphics[width=0.5\textwidth]{./figures/GMM_sample_solution.eps}
-	\caption{A visualization of the algorithm run with $N=2001$, $M=101$ over
-    the range $-\pi \leq \theta_1, \theta_2, \theta_3 \leq \pi$. The desired end-effector position, $\mathrm{x} = \bmat{1.5 &
-    -0.4}$, is depicted by the big blue circle. The learned posterior
-    distribution $P(\theta \mid \mathrm{x})$ is used to sample $100$ solutions,
-    which yield the configurations shown in orange. The actual location of the
-    end-effector the orange configurations yield are depicted by the black
-    stars.}
+	\includegraphics[width=0.5\textwidth]{./figures/GMM_sample_solution-v1.eps}
+	\caption{A visualization of the algorithm run with $N=1001$, $M=61$ over the
+    range $-\pi \leq \theta_1, \theta_2, \theta_3 \leq \pi$. The desired
+    end-effector position, $\mathrm{x} = \bmat{-1.5 & -0.4}$, is depicted by the
+    big blue circle. The learned posterior distribution $P(\theta \mid
+    \mathrm{x})$ is used to sample $10$ solutions, which yield the
+    configurations shown in orange. The actual location of the end-effector the
+    orange configurations yield are depicted by the black stars.}
     \label{fig:example_sol}
     \vspace{-30mm}
 \end{wrapfigure}

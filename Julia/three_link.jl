@@ -897,15 +897,16 @@ function plot_posteriors_sequentially(x::Vector; niter::Int=9, record::Bool=fals
         ax.set_ylabel(L"θ_2", fontsize=16)
         ax.set_xticks(round.(range(μ_view_min[1]; stop=μ_view_max[1], length=4); digits=2))
         ax.set_yticks(round.(range(μ_view_min[2]; stop=μ_view_max[2], length=4); digits=2))
+        ax.tick_params(labelsize="large")
         ax.set_aspect("auto")
 
         execute_em!(r, maxiter=3)
-        ax.set_title(LaTeXString("EM Iteration: $(3*(n-1))"))
+        ax.set_title(LaTeXString("EM Iteration: $(3*(n-1))"), fontsize=14)
     end
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     if record   
-        fig.savefig("../TeX/figures/posterior_evolution.png", dpi=600, 
-            bbox_inches="tight", format="png")
+        fig.savefig("../TeX/figures/posterior_evolution.eps", dpi=600, 
+            bbox_inches="tight", format="eps")
     end
 end

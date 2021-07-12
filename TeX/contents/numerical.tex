@@ -8,14 +8,14 @@ how many data points to randomly generate and how many components to use in the
 Gaussian mixture model. Once these are specified, the model can be trained by 
 executing the \texttt{execute\_em!} function. 
 
-The trained model with $N=2001$ sample points and $M=101$ components over the
+The trained model with $N=1001$ sample points and $M=61$ components over the
 range $-\pi \leq \theta_1, \theta_2, \theta_3 \leq \pi$ may be tested by running
 the \texttt{test\_training} function, which generates $200$ extra points and
 returns the average error incurred by the output of the algorithm. A
 visualization of the performance of the algorithm is depicted in
 Figure~\ref{fig:example_sol}. Table~\ref{tab:perf_wrt_components} compares how
 the performance of the algoritm changes as the number of components $M$ is
-varied.
+varied for $N=2001$.
 %
 The posterior $P(\theta \mid \mathrm{x})$ is initialized with a uniform
 covariance matrix with a mean coming from the initial $k$-means algorithm. As
@@ -53,10 +53,10 @@ components for $N = 2001$ data points, tested over $200$ fresh samples.}
 
 \begin{figure}[t]
     \centering
-	\includegraphics[width=\textwidth]{./figures/belief_evolution.eps}
+	\includegraphics[width=\textwidth]{./figures/posterior_evolution.eps}
     \caption{(Progression: left-to-right then top-to-bottom) The evolution of
     the posterior distribution, $P(\theta \mid \mathrm{x})$, as the EM algorithm
-    iterates. The end-effector location is $\mathrm{x} = \bmat{1.5 & -0.4}$ as
+    iterates. The end-effector location is $\mathrm{x} = \bmat{-1.5 & -0.4}$ as
     in Figure~\ref{fig:example_sol}. The posterior distribution $P(\theta \mid
     \mathrm{x})$ is marginalized over $\theta_3$ for visualization.}
     \label{fig:belief_evolution}
