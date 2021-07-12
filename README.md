@@ -16,6 +16,9 @@ top right of the page).
     be specified using the optional arguments of this function.
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
+  - ```θhat, Σhat = predict(r, x)``` -- Given end-effector location: x and ask
+    the GMM for its joint angle prediction: θhat and its measure of uncertainty:
+    Σhat.
 
 ### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY!
 
