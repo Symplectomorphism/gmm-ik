@@ -41,11 +41,22 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
   given x = [-1.5, -0.4], that most likely generates x, over θ1 and θ2
   (marginalized over θ3 for visualization purposes).
 
-![Marginal distribution](./TeX/figures/marginal.png)
+![Most likely posterior distribution](./TeX/figures/posterior_marginal_theta3.png)
 
 
-* The final figure shows the full posterior of the mixture of conditional
+* The next figure shows the full posterior of the mixture of conditional
   Gaussian distributions given x = [-1.5, -0.4] over θ1 and θ2 (marginalized
   over θ3 for visualization purposes).
 
-![Full marginal distribution](./TeX/figures/full_posterior_marginal.png)
+![Full posterior distribution](./TeX/figures/full_posterior_marginal.png)
+
+* The evolution of the posterior distrbution P(θ | x) over EM iterations may be
+  seen in the figure below.
+
+![Most likely posterior distribution evolution](./TeX/figures/posterior_evolution.png)
+
+* Testing performance results are seen in the next figure as the number of data
+  points are kept constant at N=1001 and the number of mixture components M is
+  varied.
+
+![Hyperparameter training](./TeX/figures/comp_size_vs_avg_error.png)

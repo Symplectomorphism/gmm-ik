@@ -424,7 +424,8 @@ function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102)
         r = ThreeLink(N=N, M=M)
         execute_em!(r; maxiter=100, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
         push!(avg_cost, test_training(r; nPoints=200))
-        println("Average Cost(N=$M) = $(avg_cost[end])\n ")
+        @info "Average Cost(M=$M) = $(avg_cost[end])"
+        println()
     end
     fig = figure(100)
     fig.clf()
@@ -445,7 +446,8 @@ function hypertrain_N(;M::Int=101, N_span::AbstractArray=1001:1000:5001)
         r = ThreeLink(N=N, M=M)
         execute_em!(r; maxiter=100, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
         push!(avg_cost, test_training(r; nPoints=200))
-        println("Average Cost(N=$N) = $(avg_cost[end])\n")
+        @info "Average Cost(N=$N) = $(avg_cost[end])"
+        println()
     end
     fig = figure(101)
     fig.clf()
@@ -813,13 +815,13 @@ function plot_full_posterior(r::ThreeLink, θ3::Float64; x::Vector=[-1.5, -0.4],
     ax.view_init(elev=34, azim=-74)
 
     if record
-        fig.savefig("../TeX/figures/full_posterior_marginal.png", dpi=600, 
+        fig.savefig("../TeX/figures/full_posterior_marginal_cond.png", dpi=600, 
             bbox_inches="tight", format="png")
     end
 end
 
 
-function plot_marginals_sequentially(x::Vector; maxiter::Int=9)
+function plot_posteriors_sequentially_3D(x::Vector; maxiter::Int=9)
     r = ThreeLink(N=2001, M=101)
     fig = figure(3)
     fig.clf()
@@ -857,4 +859,53 @@ function plot_marginals_sequentially(x::Vector; maxiter::Int=9)
     # fig.suptitle("Evolution of the posterior distribution", fontsize=16)
     fig.savefig("../TeX/figures/belief_evolution.eps", dpi=600, 
         bbox_inches="tight", format="eps")
+end
+
+
+
+function plot_posteriors_sequentially(x::Vector; niter::Int=9, record::Bool=false)
+    # N*(θ \mid x) marginalized over θ3
+
+    r = ThreeLink(N=1001, M=61)
+    fig = figure(3)
+    fig.clf()
+    fig.suptitle("Evolution of the P(θ | x) as EM iterates", fontsize=16)
+
+    for n = 1:niter+1
+        μ, Σ = predict(r, x)
+        μ12 = μ[1:2]
+        Σ12 = Σ[1:2,1:2]
+        d = MvNormal(μ12, Σ12)
+
+        res = svd(Σ12)
+        μ_view_min = μ12 - 5*sum(res.S[i] * res.U[:,i] for i=1:2)
+        μ_view_max = μ12 + 5*sum(res.S[i] * res.U[:,i] for i=1:2)
+        
+        θ1 = range(μ_view_min[1]; stop=μ_view_max[1], length=101)
+        θ2 = range(μ_view_min[2]; stop=μ_view_max[2], length=99)
+        Z = zeros(length(θ2), length(θ1))
+
+        for i = 1:length(θ2)
+            for j = 1:length(θ1)
+                Z[i,j] = pdf(d, [θ1[j], θ2[i]])
+            end
+        end
+        ax = fig.add_subplot(2,niter÷2+1,n)
+        
+        cs = ax.contourf(θ1, θ2, Z, cmap=PyPlot.cm.coolwarm)
+        ax.set_xlabel(L"θ_1", fontsize=16)
+        ax.set_ylabel(L"θ_2", fontsize=16)
+        ax.set_xticks(round.(range(μ_view_min[1]; stop=μ_view_max[1], length=4); digits=2))
+        ax.set_yticks(round.(range(μ_view_min[2]; stop=μ_view_max[2], length=4); digits=2))
+        ax.set_aspect("auto")
+
+        execute_em!(r, maxiter=3)
+        ax.set_title(LaTeXString("EM Iteration: $(3*(n-1))"))
+    end
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    if record   
+        fig.savefig("../TeX/figures/posterior_evolution.png", dpi=600, 
+            bbox_inches="tight", format="png")
+    end
 end
