@@ -20,7 +20,7 @@ top right of the page).
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates test
     point and plots the estimation.
 
-### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY!
+### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY! (It got a bit better after my last changes... =))
 
 
 * This is a Julia implementation of the example provided in 
