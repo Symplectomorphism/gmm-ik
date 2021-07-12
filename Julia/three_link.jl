@@ -1,5 +1,7 @@
 using Random, Distributions
+using BenchmarkTools
 using Clustering
+using LaTeXStrings
 using LinearAlgebra
 using GaussianMixtures
 using PyCall, PyPlot
@@ -418,7 +420,7 @@ function solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3
 end
 
 
-function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102)
+function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102, record::Bool=false)
     avg_cost = Float64[]
     for M in M_span
         r = ThreeLink(N=N, M=M)
@@ -437,10 +439,15 @@ function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102)
     ax.set_title(LaTeXString("Training data size: N = $N"), fontsize=16)
     ax.set_xticks(M_span)
 
+    if record
+        fig.savefig("../TeX/figures/hyperparam_M.svg", dpi=600, 
+            bbox_inches="tight", format="svg")
+    end
+
     return avg_cost, fig
 end
 
-function hypertrain_N(;M::Int=101, N_span::AbstractArray=1001:1000:5001)
+function hypertrain_N(;M::Int=61, N_span::AbstractArray=1001:500:5001, record::Bool=false)
     avg_cost = Float64[]
     for N in N_span
         r = ThreeLink(N=N, M=M)
@@ -453,11 +460,16 @@ function hypertrain_N(;M::Int=101, N_span::AbstractArray=1001:1000:5001)
     fig.clf()
     ax = fig.add_subplot(1,1,1)
     # ax.plot(M_span, avg_cost, linestyle="-", marker="o")
-    ax.bar(N_span, avg_cost)
-    ax.set_ylabel(L"Average \$\ell_2\$ error", fontsize=15)
+    ax.bar(N_span, avg_cost, width=diff(N_span)[1]*0.8)
+    ax.set_ylabel(L"Average $\ell_2$ error", fontsize=15)
     ax.set_xlabel(LaTeXString("N: training data size"), fontsize=15)
     ax.set_title(LaTeXString("Component size: M = $M"), fontsize=16)
     ax.set_xticks(N_span)
+
+    if record
+        fig.savefig("../TeX/figures/hyperparam_N.svg", dpi=600, 
+            bbox_inches="tight", format="svg")
+    end
 
     return avg_cost, fig
 end
