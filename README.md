@@ -24,8 +24,8 @@ top right of the page).
     point and plots the estimation.
 
 #### Disclosure: Proof-of-Concept Code
-* It probably runs slowly even though it should have sped up after my latest
-changes.
+* It probably runs slowly even though it should have sped up after some of my
+  recent changes.
 
 ### Results: Sample solutions and posterior distributions
 
