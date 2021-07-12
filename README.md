@@ -68,15 +68,15 @@ top right of the page).
   mixture components are kept constant at M=61 and the number of data points, N,
   is varied.
 
-![Hyperparameter training](./TeX/figures/hyperparam_N.png)
+![Hyperparameter training-1](./TeX/figures/hyperparam_N.png)
 
 * Testing performance results are seen in the next figure as the number of data
   points are kept constant at N=1001 and the number of mixture components M is
   varied.
 
-![Hyperparameter training](./TeX/figures/comp_size_vs_avg_error.png)
+![Hyperparameter training-2](./TeX/figures/comp_size_vs_avg_error.png)
 
 * Another numerical study that looks at the effect of both the number of
   components and the training data size is provided in the figure below.
 
-![Hyperparameter training](./TeX/figures/hyperparam_N.png)
+![Hyperparameter training-3](./TeX/figures/hyperparam_N.png)
