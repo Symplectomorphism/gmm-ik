@@ -475,6 +475,55 @@ function hypertrain_N(;M::Int=61, N_span::AbstractArray=1001:500:5001, record::B
 end
 
 
+function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); stop=log(2, 320), length=6))), 
+                        N_span::AbstractArray=Int.(round.(2 .^range(log(2, 100); stop=log(2, 3200), length=6))), 
+                        record::Bool=false)
+
+    Z = zeros(length(N_span), length(M_span))
+    i,j = (1,1)
+    for M in M_span
+        for N in N_span
+            r = ThreeLink(N=N, M=M)
+            if M <= N
+                execute_em!(r; maxiter=150, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
+                Z[i,j] = test_training(r; nPoints=1000)
+            else
+                Z[i,j] = missing
+                continue
+            end
+            @info "Average Cost(M=$M, N=$N) = $(Z[i,j])"
+            println()
+            i += 1
+        end
+        j += 1
+        i = 1
+    end
+
+
+    fig = figure(101)
+    fig.clf()
+    ax = fig.add_subplot(1,1,1)
+
+    # levels = sort( range(maximum(z); stop=0.05, length=10) )
+    # cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
+    # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
+    cs = ax.contourf(M_span, N_span, Z, cmap=PyPlot.cm.coolwarm)
+    ax.set_xlabel(LaTeXString("M: component size"), fontsize=15)
+    ax.set_ylabel(LaTeXString("N: training data size"), fontsize=15)
+    ax.set_title(L"Average $\ell_2$ error", fontsize=16)
+    # ax.set_aspect("equal")
+    cbar = plt.colorbar(cs)
+
+
+    if record
+        fig.savefig("../TeX/figures/hyperparam_MN.svg", dpi=600, 
+            bbox_inches="tight", format="svg")
+    end
+
+    return Z, fig
+end
+
+
 function generate_cartesian_distribution(r::ThreeLink; nPoints::Int=100)
     xmin, xmax = (minimum(r.ξ[1,:]), maximum(r.ξ[1,:]))
     ymin, ymax = (minimum(r.ξ[2,:]), maximum(r.ξ[2,:]))
@@ -921,4 +970,9 @@ function plot_posteriors_sequentially(x::Vector; niter::Int=9, record::Bool=fals
         fig.savefig("../TeX/figures/posterior_evolution.eps", dpi=600, 
             bbox_inches="tight", format="eps")
     end
+end
+
+
+
+function draw(r::ThreeLink)
 end

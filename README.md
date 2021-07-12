@@ -75,3 +75,8 @@ top right of the page).
   varied.
 
 ![Hyperparameter training](./TeX/figures/comp_size_vs_avg_error.png)
+
+* Another numerical study that looks at the effect of both the number of
+  components and the training data size is provided in the figure below.
+
+![Hyperparameter training](./TeX/figures/hyperparam_N.png)
