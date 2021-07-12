@@ -1,3 +1,9 @@
+using MeshCat, CoordinateTransformations, Rotations
+using GeometryBasics
+using Colors: RGBA, RGB
+using Blink
+# Blink.AtomShell.install()
+
 using Random, Distributions
 using BenchmarkTools
 using Clustering
@@ -7,6 +13,7 @@ using GaussianMixtures
 using PyCall, PyPlot
 using JuMP, Ipopt
 using BSON: @save, @load     # enable if you want to load one of the .bson files
+
 
 """
 The following book and papers were used as references:
@@ -483,8 +490,8 @@ function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); 
     i,j = (1,1)
     for M in M_span
         for N in N_span
-            r = ThreeLink(N=N, M=M)
             if M <= N
+                r = ThreeLink(N=N, M=M)
                 execute_em!(r; maxiter=150, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
                 Z[i,j] = test_training(r; nPoints=1000)
             else
@@ -975,4 +982,32 @@ end
 
 
 function draw(r::ThreeLink)
+    vis = Visualizer();
+    window = Blink.Window()
+    open(vis, window)
+
+    # green_material = MeshPhongMaterial(color=RGBA(0, 1, 0, 0.5))
+
+    links = Array{Rect3D, 1}()
+    link_vis = Array{Visualizer, 1}()
+
+    group1 = vis["group1"]
+    for i = 1:3
+        push!(links, HyperRectangle(Vec(0., 0, 0), Vec(1., 0.2, 0.2)))
+
+        if i == 1
+            linkcolor = MeshPhongMaterial(color=RGBA(1, 0, 0, 0.5))
+        elseif i == 2
+            linkcolor = MeshPhongMaterial(color=RGBA(0, 1, 0, 0.5))
+        else
+            linkcolor = MeshPhongMaterial(color=RGBA(0, 0, 1, 0.5))
+        end
+        push!(link_vis, 
+            setobject!(vis["group1"]["link($i)"], links[i], linkcolor)
+        )
+    end
+    settransform!(group1, Translation(0, 0, -1))
+    settransform!(link_vis[1], Translation(0, 0, 1))
+    settransform!(link_vis[2], Translation(0, 0, 2))
+
 end
