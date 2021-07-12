@@ -35,7 +35,7 @@ Ghahramani, "Solving Inverse Problems Using an EM Approach To Density Estimation
     plotted by black stars.
   - The green triangles depict the locations of the revolute joints.
   
-![Sample solution](./TeX/figures/sample_solution-v1.png)
+![Sample solution](./TeX/figures/sample_solution.png)
 
 * The figure below shows the posterior of the conditional Gaussian distribution
   given x = [-1.5, -0.4], that most likely generates x, over θ1 and θ2
