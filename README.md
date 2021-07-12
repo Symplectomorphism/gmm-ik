@@ -23,7 +23,9 @@ top right of the page).
   - ```generate_cartesian_distribution(r, nPoints=100)``` -- Generates a test
     point and plots the estimation.
 
-#### FULL DISCLOSURE: PROOF-OF-CONCEPT CODE -- CAN RUN VERY SLOWLY! (It got a bit better after my last changes... =))
+#### Disclosure: Proof-of-Concept Code
+_It probably runs slowly even though it should have sped up after my latest
+changes_.
 
 ### Results: Sample solutions and posterior distributions
 
