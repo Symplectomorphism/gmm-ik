@@ -496,7 +496,7 @@ function generate_cartesian_distribution(r::ThreeLink, x::Vector; nPoints::Int=1
     plot_manipulator!(fig, x, θ_dist, x_dist)
 
     if record
-        fig.savefig("../TeX/figures/sample_solution-v1.png", dpi=600, 
+        fig.savefig("../TeX/figures/sample_solution.png", dpi=600, 
             bbox_inches="tight", format="png")
     end
     return nothing
