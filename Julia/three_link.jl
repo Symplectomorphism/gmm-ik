@@ -1160,7 +1160,6 @@ function move_ee_cs(r::ThreeLink; x0::Vector=zeros(2), xf::Vector=[-1.5, -0.4])
     goal = HyperRectangle(Vec(0., 0, 0), Vec(s, s, s))
     setobject!(tl.vis["goal"], goal, 
         MeshPhongMaterial(wireframe=true, wireframeLinewidth=2.0, color=RGBA(1, 1, 1, 0.5)))
-    # settransform!(tl.vis["goal"], Translation(-1/8, -1/8, 1/8))
     settransform!(tl.vis["goal"], Translation(xf[1]-s/2, xf[2]-s/2, 0.0-s/2))
 
 
