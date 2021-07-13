@@ -518,15 +518,16 @@ function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); 
     # cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
     # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
     cs = ax.contourf(M_span, N_span, Z, cmap=PyPlot.cm.coolwarm)
-    ax.set_xlabel(LaTeXString("M: component size"), fontsize=20)
-    ax.set_ylabel(LaTeXString("N: training data size"), fontsize=20)
-    ax.set_title(L"Average $\ell_2$ error", fontsize=20)
+    ax.set_xlabel(LaTeXString("M: component size"), fontsize=30)
+    ax.set_ylabel(LaTeXString("N: training data size"), fontsize=30)
+    ax.set_title(L"Average $\ell_2$ error", fontsize=30)
     # ax.set_aspect("equal")
     cbar = fig.colorbar(cs, ticks=0.1:0.15:1.3)
+    cbar.ax.tick_params(labelsize=30)
 
     ax.set_xticks(M_span)
     ax.set_yticks(N_span)
-    ax.tick_params(labelsize=20)
+    ax.tick_params(labelsize=30)
     fig.tight_layout()
 
 
