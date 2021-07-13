@@ -1030,7 +1030,7 @@ function draw(r::ThreeLink; window::Window=Blink.Window())
         #     settransform!(groups[i], Translation(sum(a[1:(i-1)]),0,0))
         # end
     end
-    θ = [π/2, -π/3, π/4]
+    θf = [π/2, -π/3, π/4]
 
 
     R = Array{RotZ, 1}()            # Variable
@@ -1049,23 +1049,25 @@ function draw(r::ThreeLink; window::Window=Blink.Window())
         settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
     end
 
-    
+    anim = Animation()
     atframe(anim, 0) do
         for i = 1:3
             settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
         end
     end
 
-    for i = 1:3
-        R[i] = RotZ(sum(θ[1:i]))
-        if i > 1
-            q[i] = q[i-1] + R[i-1]*p[i-1]
-        end
-    end
+    nSteps = 120
+    for i = 1:nSteps
+        θ = i/nSteps*θf
 
-    atframe(anim, 120) do
-        for i = 1:3
-            settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
+        atframe(anim, i) do
+            for k = 1:3
+                R[k] = RotZ(sum(θ[1:k]))
+                if k > 1
+                    q[k] = q[k-1] + R[k-1]*p[k-1]
+                end
+                settransform!(groups[k], Translation(q[k]) ∘ LinearMap(R[k]))
+            end
         end
     end
     setanimation!(vis, anim)
