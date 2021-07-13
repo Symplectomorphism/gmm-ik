@@ -495,7 +495,7 @@ function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); 
                 execute_em!(r; maxiter=150, tol_μ=1e-4, tol_Σ=1e-3, verbose=true)
                 Z[i,j] = test_training(r; nPoints=1000)
             else
-                Z[i,j] = missing
+                Z[i,j] = maximum(Z)
                 continue
             end
             @info "Average Cost(M=$M, N=$N) = $(Z[i,j])"
@@ -982,6 +982,9 @@ end
 
 
 function draw(r::ThreeLink)
+    a = [1,1,1/2]
+    t = 0.05
+
     vis = Visualizer();
     window = Blink.Window()
     open(vis, window)
@@ -989,11 +992,14 @@ function draw(r::ThreeLink)
     # green_material = MeshPhongMaterial(color=RGBA(0, 1, 0, 0.5))
 
     links = Array{Rect3D, 1}()
-    link_vis = Array{Visualizer, 1}()
+    joints = Array{Sphere, 1}()
+    body_vis = Array{Visualizer, 1}()
+    groups = Array{Visualizer, 1}()
 
-    group1 = vis["group1"]
     for i = 1:3
-        push!(links, HyperRectangle(Vec(0., 0, 0), Vec(1., 0.2, 0.2)))
+        push!(links, HyperRectangle(Vec(0., 0, 0), Vec(a[i], t, t)))
+        push!(joints, Sphere{Float64}(Vec(0,0,0), 2*t))
+        push!(groups, vis["group"  * string(i)])
 
         if i == 1
             linkcolor = MeshPhongMaterial(color=RGBA(1, 0, 0, 0.5))
@@ -1002,12 +1008,47 @@ function draw(r::ThreeLink)
         else
             linkcolor = MeshPhongMaterial(color=RGBA(0, 0, 1, 0.5))
         end
-        push!(link_vis, 
-            setobject!(vis["group1"]["link($i)"], links[i], linkcolor)
+        push!(body_vis, 
+            setobject!(groups[i]["link"  * string(i)], links[i], linkcolor)
         )
+        push!(body_vis, 
+            setobject!(groups[i]["joint" * string(i)], joints[i], linkcolor)
+        )
+        settransform!(groups[i]["link" * string(i)], Translation(0, -t/2, -t/2))
+        settransform!(groups[i]["joint" * string(i)], Translation(a[i],0,0))
+
+        # if i > 1
+        #     settransform!(groups[i], Translation(sum(a[1:(i-1)]),0,0))
+        # end
     end
-    settransform!(group1, Translation(0, 0, -1))
-    settransform!(link_vis[1], Translation(0, 0, 1))
-    settransform!(link_vis[2], Translation(0, 0, 2))
+    θ = [π/2, -π/2, π/4]
+
+
+    R = Array{RotZ, 1}()            # Variable
+    q = Array{Vec3, 1}()            # Location of the joints
+    push!(q, Vec3(0., 0, 0))
+    p = Array{Vec3, 1}()            # Constant
+    for i = 1:3
+        push!(R, RotZ(0))
+        push!(p, Vec3(a[i], 0, 0) )
+        if i > 1
+            push!(q, q[i-1] + R[i-1]*p[i-1])
+        end
+    end
+
+    for i = 1:3
+        settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
+    end
+
+    pause(1.0)
+
+
+    for i = 1:3
+        R[i] = RotZ(sum(θ[1:i]))
+        if i > 1
+            q[i] = q[i-1] + R[i-1]*p[i-1]
+        end
+        settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
+    end
 
 end
