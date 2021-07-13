@@ -382,6 +382,8 @@ function solve_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
     set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
     optimize!(model)
     return value.(θ)
 end
@@ -395,6 +397,8 @@ function solve_optimization(x::Vector, θ3::Float64; start::Vector=vcat(rand(-π
         (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
+
+    JuMP.set_silent(model)
     optimize!(model)
     return value.(θ)
 end
@@ -409,6 +413,8 @@ function solve_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
     set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
     optimize!(model)
     return value.(θ)
 end
@@ -423,6 +429,25 @@ function solve_elbow_down_optimization(x::Vector; start::Vector=rand(-π:0.1:π,
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
     set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_elbow_down_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[2] >= 0)
+    @constraint(model, θ[3] == θ3)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
     optimize!(model)
     return value.(θ)
 end
@@ -437,6 +462,25 @@ function solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
     set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
+    optimize!(model)
+    return value.(θ)
+end
+
+function solve_elbow_up_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
+    model = Model(Ipopt.Optimizer)
+    @variable(model, θ[1:3])
+    @constraint(model, -π .<= θ .<= π)
+    @constraint(model, θ[2] <= 0)
+    @constraint(model, θ[3] == θ3)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    set_start_value.(θ, start)
+
+    JuMP.set_silent(model)
     optimize!(model)
     return value.(θ)
 end
@@ -1114,16 +1158,20 @@ function move_ee_cs(r::ThreeLink; x0::Vector=zeros(2), xf::Vector=[-1.5, -0.4])
     # Show goal
     s = 1/4
     goal = HyperRectangle(Vec(0., 0, 0), Vec(s, s, s))
-    setobject!(tl.vis["goal"], goal, MeshPhongMaterial(wireframe=true, wireframeLinewidth=2.0, color=RGBA(1, 1, 1, 0.5)))
+    setobject!(tl.vis["goal"], goal, 
+        MeshPhongMaterial(wireframe=true, wireframeLinewidth=2.0, color=RGBA(1, 1, 1, 0.5)))
     # settransform!(tl.vis["goal"], Translation(-1/8, -1/8, 1/8))
-    settransform!(tl.vis["goal"], Translation(-1.5-s/2, -0.4-s/2, 0.0-s/2))
+    settransform!(tl.vis["goal"], Translation(xf[1]-s/2, xf[2]-s/2, 0.0-s/2))
 
 
     # Solve inverse kinematics
-    θ0 = solve_elbow_up_optimization(x0; start=predict_elbow_up(r, xf))
-    θf = solve_elbow_up_optimization(xf; start=predict_elbow_up(r, xf))
-
-    @info fk(θf)
+    # θ0 = solve_elbow_up_optimization(x0; start=predict_elbow_up(r, x0))
+    θ0 = solve_elbow_down_optimization(x0, deg2rad(-90); start=[2.6, 1.96, -π/2])
+    @info [fk(θ0); θ0]
+    # θf = solve_elbow_up_optimization(xf; start=predict_elbow_up(r, xf))
+    θf = solve_elbow_up_optimization(xf, -0.42; start=[1.42, -1.69, -0.42])
+    # θf = solve_optimization(xf; start=θ0)
+    @info [fk(θf); θf]
 
     # Initialize the position vectors and rotation matrices
     R = Array{RotZ, 1}()            # Variable
@@ -1150,7 +1198,7 @@ function move_ee_cs(r::ThreeLink; x0::Vector=zeros(2), xf::Vector=[-1.5, -0.4])
     # Set animation steps
     nSteps = 120
     for i = 1:nSteps
-        θ = i/nSteps*θf
+        θ = (1 - i/nSteps)*θ0 + i/nSteps*θf
 
         atframe(anim, i) do
             for k = 1:3
