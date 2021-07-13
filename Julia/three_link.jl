@@ -35,6 +35,7 @@ struct ThreeLink
     Σ::Array{Matrix{Float64}, 1}                         # Variance of Gaussians
     h::Matrix{Float64}
     kμ::KmeansResult{Matrix{Float64}, Float64, Int64}    # K-means results
+    vis::Visualizer
 end
 
 function ThreeLink(θ, x, ξ, M, N)
@@ -51,7 +52,8 @@ function ThreeLink(θ, x, ξ, M, N)
     for i = 1:M
         μ[:,i] = temp.centers[:,i]
     end
-    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp)
+    vis = Visualizer()
+    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp, vis)
 end
 
 function ThreeLink(;N::Int=10)
@@ -505,6 +507,7 @@ function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); 
         j += 1
         i = 1
     end
+    Z[Z.==0.0] .= maximum(Z)
 
 
     fig = figure(101)
@@ -515,11 +518,16 @@ function hypertrain_MN(;M_span::AbstractArray=Int.(round.(2 .^range(log(2, 10); 
     # cs = ax.contour(θ1, θ2, z, levels=levels, cmap=PyPlot.cm.coolwarm)
     # ax.clabel(cs, cs.levels, inline=true, fontsize=8)
     cs = ax.contourf(M_span, N_span, Z, cmap=PyPlot.cm.coolwarm)
-    ax.set_xlabel(LaTeXString("M: component size"), fontsize=15)
-    ax.set_ylabel(LaTeXString("N: training data size"), fontsize=15)
-    ax.set_title(L"Average $\ell_2$ error", fontsize=16)
+    ax.set_xlabel(LaTeXString("M: component size"), fontsize=20)
+    ax.set_ylabel(LaTeXString("N: training data size"), fontsize=20)
+    ax.set_title(L"Average $\ell_2$ error", fontsize=20)
     # ax.set_aspect("equal")
-    cbar = plt.colorbar(cs)
+    cbar = fig.colorbar(cs, ticks=0.1:0.15:1.3)
+
+    ax.set_xticks(M_span)
+    ax.set_yticks(N_span)
+    ax.tick_params(labelsize=20)
+    fig.tight_layout()
 
 
     if record
@@ -981,13 +989,12 @@ end
 
 
 
-function draw(r::ThreeLink)
+function draw(r::ThreeLink; window::Window=Blink.Window())
     a = [1,1,1/2]
     t = 0.05
 
-    vis = Visualizer();
-    window = Blink.Window()
-    open(vis, window)
+    vis = r.vis
+    !active(window) ? open(vis, window) : nothing
 
     # green_material = MeshPhongMaterial(color=RGBA(0, 1, 0, 0.5))
 
@@ -1021,7 +1028,7 @@ function draw(r::ThreeLink)
         #     settransform!(groups[i], Translation(sum(a[1:(i-1)]),0,0))
         # end
     end
-    θ = [π/2, -π/2, π/4]
+    θ = [π/2, -π/3, π/4]
 
 
     R = Array{RotZ, 1}()            # Variable
@@ -1040,15 +1047,24 @@ function draw(r::ThreeLink)
         settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
     end
 
-    pause(1.0)
-
+    
+    atframe(anim, 0) do
+        for i = 1:3
+            settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
+        end
+    end
 
     for i = 1:3
         R[i] = RotZ(sum(θ[1:i]))
         if i > 1
             q[i] = q[i-1] + R[i-1]*p[i-1]
         end
-        settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
     end
 
+    atframe(anim, 120) do
+        for i = 1:3
+            settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
+        end
+    end
+    setanimation!(vis, anim)
 end
