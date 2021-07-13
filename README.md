@@ -79,4 +79,4 @@ top right of the page).
 * Another numerical study that looks at the effect of both the number of
   components and the training data size is provided in the figure below.
 
-![Hyperparameter training-3](./TeX/figures/hyperparam_MN.png)
+![Hyperparameter training-3](./TeX/figures/hyperparam_MN_v1.png)
