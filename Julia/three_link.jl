@@ -995,7 +995,8 @@ function draw(r::ThreeLink; window::Window=Blink.Window())
     t = 0.05
 
     vis = r.vis
-    !active(window) ? open(vis, window) : nothing
+    open(vis, window)
+    # !active(window) ? open(vis, window) : nothing
 
     # green_material = MeshPhongMaterial(color=RGBA(0, 1, 0, 0.5))
 
