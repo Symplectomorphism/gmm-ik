@@ -36,6 +36,7 @@ struct ThreeLink
     Σ::Array{Matrix{Float64}, 1}                         # Variance of Gaussians
     h::Matrix{Float64}
     kμ::KmeansResult{Matrix{Float64}, Float64, Int64}    # K-means results
+    model::Model
 end
 
 function ThreeLink(θ, x, ξ, M, N)
@@ -52,7 +53,8 @@ function ThreeLink(θ, x, ξ, M, N)
     for i = 1:M
         μ[:,i] = temp.centers[:,i]
     end
-    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp)
+    model = Model(Ipopt.Optimizer)
+    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp, model)
 end
 
 function ThreeLink(;N::Int=10)
@@ -371,6 +373,43 @@ function test_training(r::ThreeLink; nPoints::Int=200, mode::Symbol=:slse)
     cost = [norm(fk(pred_θ[:,i]) - test_x[:,i]) for i = 1:nPoints]
 
     return mean(cost)
+end
+
+function solve_optimization(r::ThreeLink, x::Vector, y::Vararg{Dict{Int64,Float64},1}; 
+                            start::Vector=rand(-π:0.1:π, 3))
+    # Example: if y is a dictionary containing --  1 => 0.1 -- this means θ1 == 0.1.
+
+    SUCCESS = [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
+    n_failures::Int=0
+    empty!(r.model)
+
+    @variable(model, -2π <= θ[1:3] <= 2π)
+    if Bool(length(y))
+        iter = keys(y)
+        next = iterate(iter)
+        while next != nothing
+            (i, state) = next
+            # body
+            @constraint(mode, θ[i] == y[i])
+            # end body
+            next = iterate(iter, state)
+        end
+    end
+    set_start_value.(θ, start)
+    @NLobjective(model, Min, 
+        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
+        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
+    )
+    for i = 1:10
+        optimize!(model)
+        if any( termination_status(model) .== SUCCESS ) 
+            break
+        else
+            set_start_value.(all_variables(model), rand(-π:0.1:π, 3))
+        end
+    end
+    failure == 10 ? (@warn "Optimizer did not convert: IK solution may be wrong.") : nothing
+    return rem2pi.(value.(θ), RoundNearest)
 end
 
 
