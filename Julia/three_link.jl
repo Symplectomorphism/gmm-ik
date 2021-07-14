@@ -36,7 +36,6 @@ struct ThreeLink
     Σ::Array{Matrix{Float64}, 1}                         # Variance of Gaussians
     h::Matrix{Float64}
     kμ::KmeansResult{Matrix{Float64}, Float64, Int64}    # K-means results
-    model::Model
 end
 
 function ThreeLink(θ, x, ξ, M, N)
@@ -54,7 +53,7 @@ function ThreeLink(θ, x, ξ, M, N)
         μ[:,i] = temp.centers[:,i]
     end
     model = Model(Ipopt.Optimizer)
-    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp, model)
+    ThreeLink(θ, x, ξ, M, N, π, μ, Σ, h, temp)
 end
 
 function ThreeLink(;N::Int=10)
@@ -375,31 +374,27 @@ function test_training(r::ThreeLink; nPoints::Int=200, mode::Symbol=:slse)
     return mean(cost)
 end
 
-function solve_optimization(r::ThreeLink, x::Vector, y::Vararg{Dict{Int64,Float64},1}; 
-                            start::Vector=rand(-π:0.1:π, 3))
-    # Example: if y is a dictionary containing --  1 => 0.1 -- this means θ1 == 0.1.
+
+function solve_optimization(x::Vector, y::Vararg{AbstractArray, 4};
+                            start::Vector=rand(-π:0.1:π, 3)) where {N}
 
     SUCCESS = [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
     n_failures::Int=0
-    empty!(r.model)
+    model = Model(Ipopt.Optimizer)
 
-    @variable(model, -2π <= θ[1:3] <= 2π)
-    if Bool(length(y))
-        iter = keys(y)
-        next = iterate(iter)
-        while next != nothing
-            (i, state) = next
-            # body
-            @constraint(mode, θ[i] == y[i])
-            # end body
-            next = iterate(iter, state)
-        end
-    end
+    A_eq, b_eq, lb, ub = y
+    isempty(lb) ? lb = -Inf*ones(3) : nothing
+    isempty(ub) ? ub = Inf*ones(3) : nothing
+
+    @variable(model, θ[1:3])
+    @constraint(model, [i=1:length(b_eq)], dot(A_eq[i], θ) == b_eq[i])
+    @constraint(model, con[i=1:length(lb)], lb[i] <= θ[i] <= ub[i])
     set_start_value.(θ, start)
     @NLobjective(model, Min, 
         (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
         (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
     )
+    JuMP.set_silent(model)
     for i = 1:10
         optimize!(model)
         if any( termination_status(model) .== SUCCESS ) 
@@ -408,133 +403,21 @@ function solve_optimization(r::ThreeLink, x::Vector, y::Vararg{Dict{Int64,Float6
             set_start_value.(all_variables(model), rand(-π:0.1:π, 3))
         end
     end
-    failure == 10 ? (@warn "Optimizer did not convert: IK solution may be wrong.") : nothing
+    n_failures == 10 ? (@warn "Optimizer did not convert: IK solution may be wrong.") : nothing
     return rem2pi.(value.(θ), RoundNearest)
 end
 
+solve_elbow_down_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3)) = 
+    solve_optimization(x, [], [], [-Inf, 0, -Inf], []; start=start)
 
-function solve_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -2π .<= θ .<= 2π)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
+solve_elbow_down_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3)) = 
+    solve_optimization(x, [[0, 0, 1]], [θ3], [-Inf, 0, -Inf], []; start=start)
 
-    JuMP.set_silent(model)
+solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3)) = 
+    solve_optimization(x, [], [], [], [Inf, 0, Inf]; start=start)
 
-    SUCCESS = [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
-    failure::Int=0
-    for i = 1:10
-        optimize!(model)
-        if any( termination_status(model) .== SUCCESS ) 
-            break
-        else
-            set_start_value.(all_variables(model), rand(-π:0.1:π, 3))
-        end
-    end
-    failure == 10 ? (@warn "IK solution may be wrong.") : nothing
-    return rem2pi.(value.(θ), RoundNearest), model
-end
-
-function solve_optimization(x::Vector, θ3::Float64; start::Vector=vcat(rand(-π:0.1:π, 2), θ3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[3] == θ3)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[3] == θ3)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_elbow_down_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[2] >= 0)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_elbow_down_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[2] >= 0)
-    @constraint(model, θ[3] == θ3)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_elbow_up_optimization(x::Vector; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[2] <= 0)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
-
-function solve_elbow_up_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3))
-    model = Model(Ipopt.Optimizer)
-    @variable(model, θ[1:3])
-    @constraint(model, -π .<= θ .<= π)
-    @constraint(model, θ[2] <= 0)
-    @constraint(model, θ[3] == θ3)
-    @NLobjective(model, Min, 
-        (cos(θ[1]) + cos(θ[1]+θ[2]) + 1/2*cos(θ[1]+θ[2]+θ[3]) - x[1])^2 + 
-        (sin(θ[1]) + sin(θ[1]+θ[2]) + 1/2*sin(θ[1]+θ[2]+θ[3]) - x[2])^2
-    )
-    set_start_value.(θ, start)
-
-    JuMP.set_silent(model)
-    optimize!(model)
-    return value.(θ)
-end
+solve_elbow_up_optimization(x::Vector, θ3::Float64; start::Vector=rand(-π:0.1:π, 3)) = 
+    solve_optimization(x, [[0, 0, 1]], [θ3], [], [Inf, 0, Inf]; start=start)
 
 
 function hypertrain_M(;N::Int=1001, M_span::AbstractArray=2:10:102, record::Bool=false)
@@ -1186,7 +1069,7 @@ function move_joints_cs(r::ThreeLink; θ0::Vector=zeros(3), θf::Vector=[π/2, -
 end
 
 
-function move_ee_cs(r::ThreeLink; x0::Vector=zeros(2), xf::Vector=[-1.5, -0.4])
+function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4])
     a = [1,1,1/2]
     tl, groups = set_scene()
 
