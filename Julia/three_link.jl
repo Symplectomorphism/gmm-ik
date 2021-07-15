@@ -120,15 +120,32 @@ function jacobians(θ::AbstractArray)
             temp * (I - sum(id[:,j]*id[:,j]' for j in (i+1):3 ) )
         )
     end
-    return push!(J, temp)
+    push!(J, temp)
+
+    # dJ = Array{Array{Matrix{Float64}, 1}, 1}()
+    # dJ11 = zeros(2,3)
+    # dJ11[1,1] = -a[1]*cos(θ[1]) - a[2]*cos(θ[1]+θ[2]) - a[3]*cos(θ[1]+θ[2]+θ[3])
+    # dJ11[2,1] = -a[1]*sin(θ[1]) - a[2]*sin(θ[1]+θ[2]) - a[3]*sin(θ[1]+θ[2]+θ[3])
+
+    return J
 end
 
 function energy(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}) where T
+    m = [2, 1, 1/2]
     J = jacobians(θ)
-    return 1/2*dot(θdot, sum(J[i]'*J[i] for i = 1:3), θdot)
+    return 1/2*dot(θdot, sum(m[i]*J[i]'*J[i] for i = 1:3), θdot)
 end
 
-function power(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}) where T
+function power(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}, 
+                θddot::AbstractArray{T, 1}, ) where T
+    # This is incomplete!...
+    
+    m = [2, 1, 1/2]
+    J = jacobians(θ)
+    H = sum(m[i]*J[i]'*J[i] for i = 1:3)
+    term1 = dot(θdot, H, θddot)
+
+    return term1
 end
 
 function ik_optimization(x::Vector, y::Vararg{AbstractArray, 4};

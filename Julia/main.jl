@@ -8,4 +8,4 @@ include("plotting.jl")
 include("assignment.jl")
 
 @load "long_and_big_training.bson" r
-move_ee_cs(r)
+tl = move_ee_cs(r);

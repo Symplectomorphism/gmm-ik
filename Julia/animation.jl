@@ -169,14 +169,23 @@ function move_ee_cs(r::ThreeLink)
     end
 
     # Set animation steps
+    th = Array{Array{Float64, 1}, 1}()
+    thdot = Array{Array{Float64, 1}, 1}()
+
     nSteps = 100
     δt = π/nSteps
     θ, x = (θ0, x0)
     J = jacobians(θ)
+    push!(th, θ)
+    push!(thdot, zeros(3))
+
     for i = 1:nSteps
         xdot = [-x[2], x[1]]
         θdot = J[3] \ xdot
         θ += δt*θdot; θ = rem2pi.(θ, RoundNearest)
+        push!(th, θ)
+        push!(thdot, θdot)
+
         x = fk(θ)
         J = jacobians(θ)
 
@@ -193,7 +202,35 @@ function move_ee_cs(r::ThreeLink)
     @info [fk(θ); θ]
     setanimation!(tl.vis, anim)
 
-    # delete!(tl.vis)
-    # close(tl.win)
+    # Compute thddot
+    thddot = Array{Array{Float64, 1}, 1}()
+    push!(thddot, zeros(3))
+    for i = 2:length(th)
+        push!(thddot, (thdot[i] - thdot[i-1])/δt)
+    end
+    fig = figure(11)
+    fig.clf()
+    
+    ax = fig.add_subplot(2,2,1)
+    ax.cla()
+    plot(((1:nSteps)*δt)[1:end], th[2:end])
+    ax.set_xlabel(L"t", fontsize=16)
+    ax.set_ylabel(L"θ", fontsize=16)
+
+    ax = fig.add_subplot(2,2,2)
+    ax.cla()
+    plot(((1:nSteps)*δt)[1:end], thdot[2:end])
+    ax.set_xlabel(L"t", fontsize=16)
+    ax.set_ylabel(L"\dot{θ}", fontsize=16)
+    # plot(((1:nSteps)*δt)[2:end], thdot[3:end])        # if accelerations are desired to be plotted.
+
+    ax = fig.add_subplot(2,2,(3,4))
+    ax.cla()
+    plot(((1:nSteps)*δt)[1:end], energy.(th[2:end], thdot[2:end]))
+    ax.set_xlabel(L"t", fontsize=16)
+    ax.set_ylabel(L"\mathcal{K}(θ, \dot{θ})", fontsize=16)
+
+    fig.tight_layout()
+
     return tl
 end
