@@ -2,6 +2,7 @@ using Random, Distributions
 using Clustering
 using LinearAlgebra
 using JuMP, Ipopt
+using ForwardDiff
 
 
 """
@@ -106,6 +107,28 @@ function jacobian!(J::Matrix, θ::AbstractArray)
     J[2,1] = a[1]*cos(θ[1]) + a[2]*cos(θ[1]+θ[2]) + a[3]*cos(θ[1]+θ[2]+θ[3])
     J[2,2] = a[2]*cos(θ[1]+θ[2]) + a[3]*cos(θ[1]+θ[2]+θ[3])
     J[2,3] = a[3]*cos(θ[1]+θ[2]+θ[3])
+end
+
+function jacobians(θ::AbstractArray)
+    id = Matrix(I, 3, 3)
+    temp = zeros(2,3);
+    jacobian!(temp, θ)
+
+    J = Array{Matrix{Float64}, 1}()
+    for i = 1:2
+        push!(J,
+            temp * (I - sum(id[:,j]*id[:,j]' for j in (i+1):3 ) )
+        )
+    end
+    return push!(J, temp)
+end
+
+function energy(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}) where T
+    J = jacobians(θ)
+    return 1/2*dot(θdot, sum(J[i]'*J[i] for i = 1:3), θdot)
+end
+
+function power(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}) where T
 end
 
 function ik_optimization(x::Vector, y::Vararg{AbstractArray, 4};

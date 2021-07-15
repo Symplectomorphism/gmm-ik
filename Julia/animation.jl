@@ -107,8 +107,14 @@ function move_joints_cs(r::ThreeLink; θ0::Vector=zeros(3), θf::Vector=[π/2, -
 end
 
 
-function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4])
+function move_ee_cs(r::ThreeLink)
     a = [1,1,1/2]
+    
+    θ0 = [-5π/6, 0, -π/2]
+    x0 = fk(θ0)
+    @info [fk(θ0); θ0]
+    xf = -x0
+
     tl, groups = set_scene()
 
     # OPTIONAL: Set camera pose
@@ -136,13 +142,10 @@ function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4]
 
 
     # Solve inverse kinematics
-    # θ0 = ik_elbow_up_optimization(x0; start=predict_elbow_up(r, x0))
-    θ0 = ik_elbow_down_optimization(x0, deg2rad(-90); start=[2.6, 1.96, -π/2])
-    @info [fk(θ0); θ0]
-    # θf = ik_elbow_up_optimization(xf; start=predict_elbow_up(r, xf))
-    θf = ik_elbow_up_optimization(xf, -0.42; start=[1.42, -1.69, -0.42])
-    # θf = ik_optimization(xf; start=θ0)
-    @info [fk(θf); θf]
+    # θ0 = ik_elbow_up_optimization(x0, -π/2; start=[-5π/6, 0, -π/2])
+    # @info [fk(θ0); θ0]
+    # θf = ik_elbow_up_optimization(xf, -0.42; start=[1.42, -1.69, -0.42])
+    # @info [fk(θf); θf]
 
     # Initialize the position vectors and rotation matrices
     R = Array{RotZ, 1}()            # Variable
@@ -150,12 +153,11 @@ function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4]
     push!(q, Vec3(0., 0., 0))
     p = Array{Vec3, 1}()            # Constant
     for i = 1:3
-        push!(R, RotZ(θ0[i]))
+        push!(R, RotZ(sum(θ0[1:i])))
         push!(p, Vec3(a[i], 0, 0) )
         if i > 1
             push!(q, q[i-1] + R[i-1]*p[i-1])
         end
-        # settransform!(groups[i], Translation(q[i]) ∘ LinearMap(R[i]))
     end
 
     # Set initial pose in animation
@@ -167,9 +169,16 @@ function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4]
     end
 
     # Set animation steps
-    nSteps = 120
+    nSteps = 100
+    δt = π/nSteps
+    θ, x = (θ0, x0)
+    J = jacobians(θ)
     for i = 1:nSteps
-        θ = (1 - i/nSteps)*θ0 + i/nSteps*θf
+        xdot = [-x[2], x[1]]
+        θdot = J[3] \ xdot
+        θ += δt*θdot; θ = rem2pi.(θ, RoundNearest)
+        x = fk(θ)
+        J = jacobians(θ)
 
         atframe(anim, i) do
             for k = 1:3
@@ -181,6 +190,7 @@ function move_ee_cs(r::ThreeLink; x0::Vector=[-1.5, -0.4], xf::Vector=[1.5, 0.4]
             end
         end
     end
+    @info [fk(θ); θ]
     setanimation!(tl.vis, anim)
 
     # delete!(tl.vis)

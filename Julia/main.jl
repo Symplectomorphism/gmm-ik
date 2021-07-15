@@ -1,8 +1,8 @@
 # using BenchmarkTools
 using BSON: @save, @load     # enable if you want to load one of the .bson files
 
-include("animation.jl")
 include("three_link.jl")
+include("animation.jl")
 include("gmm-ik.jl")
 include("plotting.jl")
 include("assignment.jl")
