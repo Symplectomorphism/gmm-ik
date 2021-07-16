@@ -172,12 +172,14 @@ function move_ee_cs(r::ThreeLink)
     th = Array{Array{Float64, 1}, 1}()
     thdot = Array{Array{Float64, 1}, 1}()
 
-    nSteps = 100
+    nSteps = 1000
     δt = π/nSteps
     θ, x = (θ0, x0)
     J = jacobians(θ)
     push!(th, θ)
-    push!(thdot, zeros(3))
+
+    xdot = [-x[2], x[1]]
+    push!(thdot, J[3] \ xdot)
 
     for i = 1:nSteps
         xdot = [-x[2], x[1]]
@@ -202,7 +204,7 @@ function move_ee_cs(r::ThreeLink)
     @info [fk(θ); θ]
     setanimation!(tl.vis, anim)
 
-    # Compute thddot
+    # Compute thddot and total energy
     thddot = Array{Array{Float64, 1}, 1}()
     push!(thddot, zeros(3))
     for i = 2:length(th)
@@ -224,13 +226,30 @@ function move_ee_cs(r::ThreeLink)
     ax.set_ylabel(L"\dot{θ}", fontsize=16)
     # plot(((1:nSteps)*δt)[2:end], thdot[3:end])        # if accelerations are desired to be plotted.
 
-    ax = fig.add_subplot(2,2,(3,4))
+    # # If the current energy is wanted to be plotted.
+    # ax = fig.add_subplot(2,2,3)
+    # ax.cla()
+    # plot(((1:nSteps)*δt)[1:end], energy.(th[2:end], thdot[2:end]))
+    # ax.set_xlabel(L"t", fontsize=16)
+    # ax.set_ylabel(L"\mathcal{K}(θ, \dot{θ})", fontsize=16)
+
+    # Total energy
+    p = power.(th, thdot, thddot)
+    total_energy = cumsum(abs.(p)*δt)
+
+    ax = fig.add_subplot(2,2,3)
     ax.cla()
-    plot(((1:nSteps)*δt)[1:end], energy.(th[2:end], thdot[2:end]))
+    plot(((1:nSteps)*δt)[2:end], total_energy[3:end])
     ax.set_xlabel(L"t", fontsize=16)
-    ax.set_ylabel(L"\mathcal{K}(θ, \dot{θ})", fontsize=16)
+    ax.set_ylabel(LaTeXString("Total Energy"), fontsize=16)
+
+    ax = fig.add_subplot(2,2,4)
+    ax.cla()
+    plot(((1:nSteps)*δt)[2:end], p[3:end])
+    ax.set_xlabel(L"t", fontsize=16)
+    ax.set_ylabel(L"\mathcal{P}(θ, \dot{θ}, \ddot{θ})", fontsize=16)
 
     fig.tight_layout()
 
-    return tl
+    return tl, th, thdot, thddot
 end

@@ -138,14 +138,58 @@ end
 
 function power(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}, 
                 θddot::AbstractArray{T, 1}, ) where T
-    # This is incomplete!...
-    
+    a = [1., 1, 1/2]
     m = [2, 1, 1/2]
-    J = jacobians(θ)
-    H = sum(m[i]*J[i]'*J[i] for i = 1:3)
-    term1 = dot(θdot, H, θddot)
+    
+    power = a[1].^2*(m[1]+m[2]+m[3]).*θdot[1].*θddot[1]+a[2].^2*(m[2]+m[3]).*
+            (θdot[1]+θdot[2]).*(θddot[1]+θddot[2])+a[3].^2*m[3].*
+            (θdot[1]+θdot[2]+θdot[3]).*(θddot[1]+θddot[2]+θddot[3])+
+            a[1].*a[2].*(m[2]+m[3]).*((θddot[1].*θdot[2]+θdot[1].*
+            (2*θddot[1]+θddot[2])).*cos(θ[2])+(-1).*θdot[1].*θdot[2].*
+            (θdot[1]+θdot[2]).*sin(θ[2]))+a[3].*m[3].*cos(θ[3]).*(a[2].*
+            (θddot[1]+θddot[2]).*(2*(θdot[1]+θdot[2])+θdot[3])+a[2].*
+            (θdot[1]+θdot[2]).*θddot[3]+a[1].*(θddot[1].*
+            (θdot[2]+θdot[3])+θdot[1].*(2*θddot[1]+θddot[2]+θddot[3])).*
+            cos(θ[2])+(-1).*a[1].*θdot[1].*(θdot[2]+θdot[3]).*
+            (θdot[1]+θdot[2]+θdot[3]).*sin(θ[2]))+(-1).*a[3].*m[3].*
+            ((θdot[1]+θdot[2]+θdot[3]).*(a[2].*(θdot[1]+θdot[2]).*θdot[3]+
+            a[1].*θdot[1].*(θdot[2]+θdot[3]).*cos(θ[2]))+a[1].*
+            (θddot[1].*(θdot[2]+θdot[3])+θdot[1].*(2*θddot[1]+θddot[2]+θddot[3])).*
+            sin(θ[2])).*sin(θ[3]);
 
-    return term1
+    return power
+end
+
+
+function inverse_dynamics(θ::AbstractArray{T, 1}, θdot::AbstractArray{T, 1}, 
+                            θddot::AbstractArray{T, 1}, ) where T
+    # What are the torques needed to generate a given motion?
+    a = [1., 1, 1/2]
+    m = [2, 1, 1/2]
+    τ = zeros(3)
+
+    τ[1] = a[1].^2*(m[1]+m[2]+m[3])*θddot[1]+(a[3].^2*m[3]+a[2].^2*(m[2]+m[3]))*
+        (θddot[1]+θddot[2])+a[3].^2*m[3]*θddot[3]+(-1)*a[1]*a[2]*(m[2]+m[3])*θdot[2]*
+        (2*θdot[1]+θdot[2])*sin(θ[2])+a[3]*m[3]*cos(θ[3])*(a[2]*
+        (2*(θddot[1]+θddot[2])+θddot[3])+(-1)*a[1]*(θdot[2]+θdot[3])*(2*θdot[1]+
+        θdot[2]+θdot[3])*sin(θ[2]))+(-1)*a[3]*m[3]*(a[2]*θdot[3]*(2*
+        (θdot[1]+θdot[2])+θdot[3])+a[1]*(2*θddot[1]+θddot[2]+θddot[3])*sin(θ[2]))*
+        sin(θ[3])+a[1]*cos(θ[2])*(a[2]*(m[2]+m[3])*(2*θddot[1]+θddot[2])+a[3]*m[3]*
+        (2*θddot[1]+θddot[2]+θddot[3])*cos(θ[3])+(-1)*a[3]*m[3]*(θdot[2]+θdot[3])*
+        (2*θdot[1]+θdot[2]+θdot[3])*sin(θ[3]));
+
+    τ[2] = a[2].^2*(m[2]+m[3])*(θddot[1]+θddot[2])+a[3].^2*m[3]*(θddot[1]+
+        θddot[2]+θddot[3])+a[1]*a[2]*(m[2]+m[3])*(θddot[1]*cos(θ[2])+θdot[1].^2*
+        sin(θ[2]))+a[3]*m[3]*cos(θ[3])*(a[2]*(2*(θddot[1]+θddot[2])+θddot[3])+
+        a[1]*θddot[1]*cos(θ[2])+a[1]*θdot[1].^2*sin(θ[2]))+(-1)*a[3]*m[3]*(a[2]*
+        θdot[3]*(2*(θdot[1]+θdot[2])+θdot[3])+(-1)*a[1]*θdot[1].^2*cos(θ[2])+a[1]*
+        θddot[1]*sin(θ[2]))*sin(θ[3]);
+
+    τ[3] = a[3]*m[3]*(a[3]*(θddot[1]+θddot[2]+θddot[3])+a[2]*(θddot[1]+
+        θddot[2])*cos(θ[3])+a[1]*θddot[1]*cos(θ[2]+θ[3])+a[2]*(θdot[1]+θdot[2]).^2*
+        sin(θ[3])+a[1]*θdot[1].^2*sin(θ[2]+θ[3]));
+    
+    return τ
 end
 
 function ik_optimization(x::Vector, y::Vararg{AbstractArray, 4};
